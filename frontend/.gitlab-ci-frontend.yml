@@ -1,0 +1,29 @@
+image: node:22-alpine
+
+# 파이프라인의 단계를 정의합니다. 여기서는 'deploy' 단계 하나만 있습니다.
+stages:
+  - deploy
+
+# 배포 작업을 정의합니다.
+Vercel-Deploy:
+  stage: deploy # 이 작업은 'deploy' 단계에 속합니다.
+
+  # 실제 배포 명령을 실행하는 부분입니다.
+  script:
+    # 1. Next.js 프로젝트가 있는 frontend 폴더로 이동합니다.
+    - cd frontend
+
+    # 2. GitLab 변수에서 설정한 값들을 이용해 Vercel 프로젝트 정보를 가져옵니다.
+    #    .vercel 폴더가 생성되며, Vercel 프로젝트와 연결됩니다.
+    - npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+
+    # 3. 프로젝트를 빌드합니다.
+    - npx vercel build --prod --token=$VERCEL_TOKEN
+
+    # 4. 빌드된 결과물을 Vercel에 업로드하여 최종 배포를 실행합니다.
+    - npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+
+  # 어떤 브랜치에서 이 작업을 실행할지 지정합니다.
+  only:
+    - master
+    - frontend
