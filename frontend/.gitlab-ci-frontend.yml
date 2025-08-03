@@ -1,12 +1,8 @@
 image: node:22-alpine
 
-# 파이프라인의 단계를 정의합니다. 여기서는 'deploy' 단계 하나만 있습니다.
-stages:
-  - deploy
-
 # 배포 작업을 정의합니다.
 Vercel-Deploy:
-  stage: deploy # 이 작업은 'deploy' 단계에 속합니다.
+  stage: frontend-deploy # 이 작업은 'deploy' 단계에 속합니다.
 
   # 실제 배포 명령을 실행하는 부분입니다.
   script:

@@ -1,3 +1,9 @@
+stages:
+  - android-lint
+  - android-build
+  - android-test
+  - frontend-deploy
+
 include:
   - local: "frontend/.gitlab-ci-frontend.yml"
     rules:
