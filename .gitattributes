@@ -1,0 +1,28 @@
+# 모든 파일의 줄바꿈을 자동으로 처리 
+* text=auto eol=lf
+
+# 폰트
+*.eot binary
+*.otf binary
+*.ttf binary
+*.woff binary
+*.woff2 binary
+
+# 이미지
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.svg binary
+
+# 기타 바이너리
+*.ico binary
+*.pdf binary
+*.zip binary
+*.jar binary
+
+
+# 특정 파일의 diff 비활성화
+package-lock.json -diff
+yarn.lock -diff
+

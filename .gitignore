@@ -1,0 +1,122 @@
+# ===================================================================
+# 1. 공통 규칙 (OS, 민감한 정보 등)
+# 모든 프로젝트와 운영체제에 공통으로 적용되는 규칙입니다.
+# ===================================================================
+
+# 운영체제(OS) 생성 파일
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 로그 파일
+*.log
+*.logs
+*.out
+
+# 민감한 환경 변수 파일 (절대 커밋하지 마세요)
+.env
+.env.*
+!.env.example
+
+# 임시 파일 및 아카이브
+*.tmp
+*.temp
+*.swp
+*.zip
+*.tar.*
+*.rar
+
+
+# ===================================================================
+# 2. IDE 및 편집기 설정
+# IntelliJ, Android Studio, VS Code 공통 설정입니다.
+# ===================================================================
+
+# JetBrains (IntelliJ, Android Studio)
+.idea/
+*.iml
+*.iws
+
+# Visual Studio Code
+.vscode/
+# .vscode/settings.json 처럼 공유할 설정이 있다면 아래 주석을 푸세요.
+# !.vscode/settings.json
+# !.vscode/extensions.json
+# !.vscode/launch.json
+
+
+# ===================================================================
+# 3. Node.js (React, Next.js) 관련
+# 프론트엔드 및 Node.js 백엔드 공통 규칙입니다.
+# ===================================================================
+
+# 의존성 폴더
+node_modules/
+/node_modules
+
+# 빌드 결과물
+.next/
+/build/
+/dist/
+out/
+
+# 디버그 로그 파일
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 기타
+.pnp.*
+.npm
+
+
+# ===================================================================
+# 4. Java / Spring (Maven & Gradle) 관련
+# 자바 스프링 백엔드 공통 규칙입니다.
+# ===================================================================
+
+# 빌드 결과물
+/target/
+/build/
+
+# IDE가 생성하는 빌드 관련 파일
+*.class
+*.jar
+*.war
+*.ear
+
+# Gradle
+.gradle/
+build/
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+
+
+# ===================================================================
+# 5. Android 관련
+# 안드로이드 프로젝트 공통 규칙입니다.
+# ===================================================================
+
+# 빌드 결과물
+/build
+*.apk
+*.aab
+*.ap_
+
+# 로컬 설정 파일 (팀원과 공유하면 안 됨)
+local.properties
+.gradle/
+/captures/
+.DS_Store
+
+# 생성된 파일
+generated/
