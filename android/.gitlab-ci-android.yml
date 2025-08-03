@@ -1,13 +1,14 @@
-image: fabernovel/android:api-33-v1.7.0
+image: fabernovel/android:api-35-gcloud-ndk-v1.9.0
 
 cache:
   key: ${CI_PROJECT_ID}
   paths:
-    - .gradle/wrapper
-    - .gradle/caches
+    - android/.gradle/wrapper
+    - android/.gradle/caches
 
 before_script:
   - cd android
+  - export JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
   - export GRADLE_USER_HOME="$CI_PROJECT_DIR/.gradle"
   - chmod +x ./gradlew
   - echo "BASE_URL=$BASE_URL" >> local.properties
