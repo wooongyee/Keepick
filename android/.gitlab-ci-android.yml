@@ -1,10 +1,17 @@
 image: fabernovel/android:api-35-gcloud-ndk-v1.9.0
 
 cache:
-  key: ${CI_PROJECT_ID}
+  # 1. 의존성 파일들의 내용으로 고유한 키를 만듭니다.
+  #    이 파일들 중 하나라도 변경되면, 새로운 캐시가 생성됩니다.
+  key:
+    files:
+      - android/build.gradle.kts
+      - android/app/build.gradle.kts
+      - android/gradle/libs.versions.toml
   paths:
     - android/.gradle/wrapper
     - android/.gradle/caches
+  policy: pull-push
 
 before_script:
   - cd android
