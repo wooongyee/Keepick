@@ -85,7 +85,7 @@ fun MainScreen(
         ) {
             composable(route = BottomNavItem.Home.route) {
                 HomeRoute(
-                    onNavigateToLogin = onNavigateToLogin
+//                    onNavigateToLogin = onNavigateToLogin
                 )
             }
             composable(route = BottomNavItem.Group.route) {
