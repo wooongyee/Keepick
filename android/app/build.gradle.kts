@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,6 +9,17 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
 }
+
+val properties = Properties()
+val localPropertiesFile = project.rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    properties.load(localPropertiesFile.inputStream())
+}
+
+fun Properties.getAndCheck(propertyKey: String): String {
+    return getProperty(propertyKey) ?: throw GradleException("'$propertyKey' not found in local.properties")
+}
+
 
 android {
     namespace = "com.ssafy.keepick"
@@ -23,6 +36,14 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        buildConfigField("String", "BASE_URL", "\"${properties.getAndCheck("BASE_URL")}\"")
+        buildConfigField("String", "KAKAO_CLIENT_ID", "\"${properties.getAndCheck("KAKAO_CLIENT_ID")}\"")
+        buildConfigField("String", "NAVER_CLIENT_ID", "\"${properties.getAndCheck("NAVER_CLIENT_ID")}\"")
+        buildConfigField("String", "NAVER_CLIENT_SECRET", "\"${properties.getAndCheck("NAVER_CLIENT_SECRET")}\"")
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${properties.getAndCheck("GOOGLE_CLIENT_ID")}\"")
+
+        manifestPlaceholders["KAKAO_CLIENT_ID"] = properties.getProperty("KAKAO_CLIENT_ID", "")
     }
 
     buildTypes {
@@ -43,6 +64,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -51,6 +73,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
@@ -58,11 +81,6 @@ dependencies {
 
     // Navigation
     implementation(libs.androidx.navigation.compose)
-
-    // Adidas MVI
-    implementation(libs.adidas.mvi.core)
-    implementation(libs.adidas.mvi.compose)
-    testImplementation(libs.adidas.mvi.kotest)
 
     // ViewModel & Coroutines
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -75,6 +93,11 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.android.compiler)
 
+    // Orbit MVI
+    implementation(libs.orbit.core)
+    implementation(libs.orbit.viewmodel)
+    implementation(libs.orbit.compose)
+
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
@@ -84,6 +107,9 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp.core)
     implementation(libs.okhttp.logging.interceptor)
+
+    implementation(libs.naver.login)
+    implementation(libs.kakao.sdk.user)
 
     // Image Loading (Coil)
     implementation(libs.coil.compose)
