@@ -1,13 +1,7 @@
 image: fabernovel/android:api-35-gcloud-ndk-v1.9.0
 
 cache:
-  # 1. 의존성 파일들의 내용으로 고유한 키를 만듭니다.
-  #    이 파일들 중 하나라도 변경되면, 새로운 캐시가 생성됩니다.
-  key:
-    files:
-      - android/build.gradle.kts
-      - android/app/build.gradle.kts
-      - android/gradle/libs.versions.toml
+  key: ${CACHE_FINGERPRINT}
   paths:
     - android/.gradle/wrapper
     - android/.gradle/caches
@@ -15,6 +9,12 @@ cache:
 
 before_script:
   - cd android
+  - # 1. 모든 의존성 관련 파일을 찾아서 하나의 임시 파일로 합칩니다.
+  - find android -name "build.gradle.kts" -o -name "libs.versions.toml" | sort | xargs cat > all-dependencies.tmp
+  - # 2. 합쳐진 파일의 내용으로 SHA256 해시값을 계산하고, 그 값을 변수에 저장합니다.
+  - export CACHE_FINGERPRINT=$(sha256sum all-dependencies.tmp | cut -d' ' -f1)
+  - # 3. 임시 파일을 삭제합니다.
+  - rm all-dependencies.tmp
   - export GRADLE_USER_HOME="$CI_PROJECT_DIR/android/.gradle"
   - chmod +x ./gradlew
   - echo "BASE_URL=$BASE_URL" >> local.properties
