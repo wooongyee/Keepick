@@ -16,7 +16,6 @@ fun KeepickNavHost() {
         navController = navController,
         startDestination = NavRoute.Login.route
     ) {
-        // 로그인 경로 설정
         composable(route = NavRoute.Login.route) {
             LoginRoute(
                 onNavigateToHome = {
@@ -29,7 +28,6 @@ fun KeepickNavHost() {
             )
         }
 
-        // 홈 경로 설정
         composable(route = NavRoute.Home.route) {
             HomeRoute(
                 onNavigateToLogin = {

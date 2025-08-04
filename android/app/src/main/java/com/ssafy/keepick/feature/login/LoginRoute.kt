@@ -1,30 +1,25 @@
 package com.ssafy.keepick.feature.login
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun LoginRoute(
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    modifier: Modifier = Modifier,
+    // viewModel: LoginViewModel = hiltViewModel()
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "로그인 화면",
-            fontSize = 24.sp
-        )
-        Spacer(modifier = Modifier.height(20.dp))
-        Button(onClick = onNavigateToHome) {
-            Text("홈으로 이동")
-        }
-    }
+    // val loginUiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LoginScreen(
+        onKakaoLoginClick = {
+            // TODO: viewModel.loginWithKakao() 호출
+            println("카카오 로그인 버튼 클릭됨")
+        },
+        onNaverLoginClick = {
+            // TODO: viewModel.loginWithNaver() 호출
+            println("네이버 로그인 버튼 클릭됨")
+        },
+        modifier = modifier
+    )
 }
