@@ -20,6 +20,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
 
     buildTypes {
@@ -57,12 +60,12 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     // Adidas MVI
-    runtimeOnly(libs.adidas.mvi.core)
+    implementation(libs.adidas.mvi.core)
     implementation(libs.adidas.mvi.compose)
     testImplementation(libs.adidas.mvi.kotest)
 
     // ViewModel & Coroutines
-    implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
@@ -77,7 +80,7 @@ dependencies {
 
     // Network (Retrofit & OkHttp)
     implementation(libs.retrofit.core)
-    implementation(libs.retrofit.kotlinx.serialization)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp.core)
     implementation(libs.okhttp.logging.interceptor)

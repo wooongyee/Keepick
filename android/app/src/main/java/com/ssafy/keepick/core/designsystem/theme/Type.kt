@@ -1,4 +1,4 @@
-package com.ssafy.keepick.ui.theme
+package com.ssafy.keepick.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
