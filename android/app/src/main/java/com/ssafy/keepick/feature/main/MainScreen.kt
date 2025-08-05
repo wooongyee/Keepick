@@ -8,11 +8,14 @@ import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +34,8 @@ import com.ssafy.keepick.feature.gallery.GalleryScreen
 import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
 import com.ssafy.keepick.feature.group.components.GroupTopBar
+import com.ssafy.keepick.feature.group.createGroup.CreateGroupBottomSheet
+import com.ssafy.keepick.feature.group.createGroup.CreateGroupStep
 import com.ssafy.keepick.feature.home.HomeRoute
 import com.ssafy.keepick.feature.home.components.HomeTopBar
 import com.ssafy.keepick.feature.mypage.MypageScreen
@@ -44,11 +49,16 @@ fun MainScreen(
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    // --- 그룹 선택 관련 상태를 MainScreen에서 관리 ---
     var isMenuExpanded by remember { mutableStateOf(false) }
     var currentGroupName by remember { mutableStateOf("키픽 공식 그룹") }
     val groups = listOf("키픽 공식 그룹", "SSAFY 13기 D207", "가족방", "스터디 그룹")
 
+    var showCreateGroupSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden }
+    )
+    var createGroupStep by remember { mutableStateOf(CreateGroupStep.INPUT_INFO) }
     val bottomNavItems = listOf(
         BottomNavItem.Home,
         BottomNavItem.Group,
@@ -68,7 +78,10 @@ fun MainScreen(
                         groupName = currentGroupName,
                         onBackClick = { /* 최상위 화면에서는 보통 사용하지 않음 */ },
                         onGroupSelectClick = { isMenuExpanded = !isMenuExpanded },
-                        onAddClick = { /* TODO: 콘텐츠 추가 */ },
+                        onAddClick = {
+                            createGroupStep = CreateGroupStep.INPUT_INFO
+                            showCreateGroupSheet = true
+                        },
                         onVideoClick = { /* TODO: 영상통화 */ }
                     )
                 }
@@ -138,6 +151,28 @@ fun MainScreen(
                     isMenuExpanded = false
                 }
             )
+        }
+        if (showCreateGroupSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showCreateGroupSheet = false },
+                sheetState = sheetState,
+                dragHandle = null // 2. 기본 드래그 핸들을 완전히 제거합니다.
+            ) {
+                CreateGroupBottomSheet(
+                    currentStep = createGroupStep,
+                    onDismissRequest = { showCreateGroupSheet = false },
+                    onNavigateToPreviousStep = { // 3. 뒤로가기 콜백 연결
+                        createGroupStep = CreateGroupStep.INPUT_INFO
+                    },
+                    onNavigateToNextStep = {
+                        createGroupStep = CreateGroupStep.INVITE_FRIENDS
+                    },
+                    onCreateGroup = {
+                        showCreateGroupSheet = false
+                        // TODO: 실제 그룹 생성 API 호출 로직
+                    }
+                )
+            }
         }
     }
 }
