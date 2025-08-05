@@ -44,7 +44,7 @@ import com.ssafy.keepick.feature.mypage.MypageScreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    onNavigateToLogin: () -> Unit // 이 파라미터는 현재 사용되지 않으므로, 필요 없다면 제거 가능합니다.
+    onNavigateToLogin: () -> Unit,
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -130,8 +130,6 @@ fun MainScreen(
                 .padding(innerPadding)
                 .fillMaxSize()
         ) {
-            // 2. NavHost는 이제 부모 Box를 꽉 채우도록 설정합니다.
-            //    패딩은 부모 Box가 이미 처리했으므로 여기서는 Modifier만 전달합니다.
             NavHost(
                 navController = bottomNavController,
                 startDestination = BottomNavItem.Home.route,

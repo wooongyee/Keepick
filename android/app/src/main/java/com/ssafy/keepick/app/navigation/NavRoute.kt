@@ -1,20 +1,27 @@
 package com.ssafy.keepick.app.navigation
 
+import android.net.Uri
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
-
 sealed class NavRoute(val route: String) {
-    data object Login : NavRoute("login")
+    data object Login : NavRoute("login?postLoginUri={postLoginUri}") {
+        const val POST_LOGIN_URI_ARG = "postLoginUri"
+
+        fun createRoute(postLoginUri: String?): String {
+            val encodedUri = Uri.encode(postLoginUri ?: "")
+            return "login?postLoginUri=$encodedUri"
+        }
+    }
     data object Main : NavRoute("main")
-    data object Group : NavRoute("group/{groupId}") {
-        fun createRoute(groupId: Int) = "group/$groupId"
+    data object Invite : NavRoute("invite/{inviteCode}") {
+        const val INVITE_CODE_ARG = "inviteCode"
+        fun createRoute(inviteCode: String): String = "invite/$inviteCode"
     }
 }
-
 sealed class BottomNavItem(
     val title: String,
     val icon: ImageVector,

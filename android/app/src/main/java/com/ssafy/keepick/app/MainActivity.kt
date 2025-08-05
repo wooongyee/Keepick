@@ -13,11 +13,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        val deepLinkUri = intent.data?.toString()
+        intent.data = null
         setContent {
             KeepickTheme {
-                KeepickNavHost()
+                KeepickNavHost(initialDeepLinkUri = deepLinkUri)
             }
         }
     }
 }
-
