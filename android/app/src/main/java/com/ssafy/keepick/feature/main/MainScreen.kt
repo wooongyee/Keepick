@@ -20,12 +20,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ssafy.keepick.app.navigation.BottomNavItem
 import com.ssafy.keepick.feature.gallery.GalleryScreen
-import com.ssafy.keepick.feature.group.GroupScreen
+import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.home.HomeRoute
-import com.ssafy.keepick.feature.home.components.KeepickTopAppBar
 import com.ssafy.keepick.feature.mypage.MypageScreen
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter") // Scaffold가 material3로 변경됨
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
 @Composable
 fun MainScreen(
     onNavigateToLogin: () -> Unit
@@ -39,7 +38,6 @@ fun MainScreen(
     )
 
     Scaffold(
-        topBar = { KeepickTopAppBar() },
         bottomBar = {
             NavigationBar(
                 containerColor = Color.White // backgroundColor -> containerColor
@@ -89,7 +87,7 @@ fun MainScreen(
                 )
             }
             composable(route = BottomNavItem.Group.route) {
-                GroupScreen() // 임시 스크린
+                GroupRoute() // 임시 스크린
             }
             composable(route = BottomNavItem.Gallery.route) {
                 GalleryScreen() // 임시 스크린

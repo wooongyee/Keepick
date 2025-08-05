@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -24,12 +26,12 @@ import com.ssafy.keepick.R
 import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
 import com.ssafy.keepick.feature.home.components.AlbumItem
 import com.ssafy.keepick.feature.home.components.GroupItem
+import com.ssafy.keepick.feature.home.components.HomeTopBar
 
 @Composable
 fun HomeScreen() {
     val context = LocalContext.current
 
-    // --- 데이터를 UI 모델로 변환하는 작업을 remember를 통해 한 번만 실행 ---
     val displayGroups = remember(context) {
         listOf(
             DummyGroup(1, R.drawable.dummy_group, "가족 모임", "9명 - 엄마, 아빠, 동생 ...", listOf(R.drawable.dummy_profile, R.drawable.dummy_profile, R.drawable.dummy_profile)),
@@ -59,46 +61,53 @@ fun HomeScreen() {
         }
     }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Text("내가 속한 그룹", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
+    Scaffold(
+        topBar = {
+            HomeTopBar(onNotificationClick = { /* TODO: 알림 화면으로 이동 */ })
         }
+    ) { paddingValues ->
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues), // Scaffold의 패딩을 적용하여 TopBar와 겹치지 않게 합니다.
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Text("내가 속한 그룹", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-        // 이제 items 블록은 미리 가공된 데이터를 그리기만 합니다.
-        items(
-            items = displayGroups,
-            key = { group -> "group_${group.id}" },
-            span = { GridItemSpan(maxLineSpan) }
-        ) { group ->
-            GroupItem(
-                groupImageUrl = group.imageUrl, // 계산이 끝난 URI 문자열 전달
-                groupName = group.name,
-                groupDetail = group.detail,
-                memberImageUrls = group.memberImageUrls // 계산이 끝난 URI 문자열 리스트 전달
-            )
-        }
+            items(
+                items = displayGroups,
+                key = { group -> "group_${group.id}" },
+                span = { GridItemSpan(maxLineSpan) }
+            ) { group ->
+                GroupItem(
+                    groupImageUrl = group.imageUrl,
+                    groupName = group.name,
+                    groupDetail = group.detail,
+                    memberImageUrls = group.memberImageUrls
+                )
+            }
 
-        item(span = { GridItemSpan(maxLineSpan) }) {
-            Spacer(modifier = Modifier.height(32.dp))
-            Text("내 그룹 앨범들", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Spacer(modifier = Modifier.height(32.dp))
+                Text("내 그룹 앨범들", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
-        items(
-            items = displayAlbums,
-            key = { album -> "album_${album.id}" }
-        ) { album ->
-            AlbumItem(
-                thumbnailUrl = album.thumbnailUrl, // 계산이 끝난 URI 문자열 전달
-                albumTitle = album.title,
-                photoCount = album.photoCount
-            )
+            items(
+                items = displayAlbums,
+                key = { album -> "album_${album.id}" }
+            ) { album ->
+                AlbumItem(
+                    thumbnailUrl = album.thumbnailUrl,
+                    albumTitle = album.title,
+                    photoCount = album.photoCount
+                )
+            }
         }
     }
 }
@@ -107,7 +116,6 @@ fun HomeScreen() {
 @Preview(showBackground = true, name = "홈 화면 미리보기")
 @Composable
 fun HomeScreenPreview() {
-    // 실제 앱의 테마로 감싸주어야 정확한 디자인(색상, 폰트 등)을 볼 수 있습니다.
     KeepickTheme {
         HomeScreen()
     }
@@ -121,8 +129,6 @@ private data class DummyAlbum(val id: Int, val thumbnailUrl: Int, val title: Str
 private data class DisplayGroup(val id: Int, val imageUrl: String, val name: String, val detail: String, val memberImageUrls: List<String>)
 private data class DisplayAlbum(val id: Int, val thumbnailUrl: String, val title: String, val photoCount: Int)
 
-// --- drawable 리소스를 URI 문자열로 변환하는 일반 함수 (더 이상 @Composable이 아님) ---
 private fun Int.toDrawableUri(context: Context): String {
     return Uri.parse("android.resource://${context.packageName}/$this").toString()
 }
-

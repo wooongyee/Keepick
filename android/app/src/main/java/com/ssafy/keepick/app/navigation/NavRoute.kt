@@ -10,6 +10,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class NavRoute(val route: String) {
     data object Login : NavRoute("login")
     data object Main : NavRoute("main")
+    data object Group : NavRoute("group/{groupId}") {
+        fun createRoute(groupId: Int) = "group/$groupId"
+    }
 }
 
 sealed class BottomNavItem(
