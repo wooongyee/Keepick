@@ -112,6 +112,7 @@ dependencies {
 
     implementation(libs.naver.login)
     implementation(libs.kakao.sdk.user)
+    implementation(libs.accompanist.permissions)
 
     // Image Loading (Coil)
     implementation(libs.coil.compose)

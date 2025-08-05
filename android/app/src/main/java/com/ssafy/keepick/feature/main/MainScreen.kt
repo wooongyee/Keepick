@@ -30,6 +30,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ssafy.keepick.app.navigation.BottomNavItem
+import com.ssafy.keepick.core.ui.RequestStoragePermissionOnStart
 import com.ssafy.keepick.feature.gallery.GalleryScreen
 import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
@@ -65,6 +66,8 @@ fun MainScreen(
         BottomNavItem.Gallery,
         BottomNavItem.MyPage
     )
+
+    RequestStoragePermissionOnStart()
 
     Scaffold(
         topBar = {

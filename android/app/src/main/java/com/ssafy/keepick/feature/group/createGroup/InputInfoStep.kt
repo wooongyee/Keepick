@@ -1,12 +1,15 @@
 package com.ssafy.keepick.feature.group.createGroup
 
+import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -26,11 +29,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.ssafy.keepick.core.ui.rememberGalleryLauncher
 
 
 @Composable
@@ -38,20 +44,39 @@ internal fun InputInfoStep() {
     var groupName by remember { mutableStateOf("") }
     var groupDescription by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val galleryLauncher = rememberGalleryLauncher { uri ->
+        selectedImageUri = uri
+    }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "그룹 정보 입력 아이콘",
+        Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(80.dp) // 크기를 약간 키워 이미지가 잘 보이도록 함
                 .clip(CircleShape)
                 .background(Color.LightGray.copy(alpha = 0.5f))
-                .padding(16.dp)
-        )
+                .clickable { galleryLauncher() }, // 클릭 시 갤러리 런처 실행
+            contentAlignment = Alignment.Center
+        ) {
+            if (selectedImageUri != null) {
+                AsyncImage(
+                    model = selectedImageUri,
+                    contentDescription = "선택된 그룹 프로필 이미지",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop // 이미지가 원을 꽉 채우도록 설정
+                )
+            } else {
+                // 이미지가 없으면 기본 아이콘 표시
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "그룹 이미지 추가",
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
         Text("그룹 정보 입력", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         Text("새로운 그룹의 기본 정보를 입력해주세요.", color = Color.Gray)
         Spacer(modifier = Modifier.height(16.dp))
