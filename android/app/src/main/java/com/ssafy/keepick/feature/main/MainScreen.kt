@@ -1,5 +1,6 @@
 package com.ssafy.keepick.feature.main
 
+import MypageTopBar
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -39,7 +40,7 @@ import com.ssafy.keepick.feature.group.createGroup.CreateGroupBottomSheet
 import com.ssafy.keepick.feature.group.createGroup.CreateGroupStep
 import com.ssafy.keepick.feature.home.HomeRoute
 import com.ssafy.keepick.feature.home.components.HomeTopBar
-import com.ssafy.keepick.feature.mypage.MypageScreen
+import com.ssafy.keepick.feature.mypage.MyPageRoute
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +87,12 @@ fun MainScreen(
                             showCreateGroupSheet = true
                         },
                         onVideoClick = { /* TODO: 영상통화 */ }
+                    )
+                }
+                BottomNavItem.MyPage.route -> {
+                    MypageTopBar(
+                        onLogoutClick = onNavigateToLogin, // 로그아웃 콜백 연결
+                        onSettingsClick = { /* TODO: 설정 화면 이동 */ }
                     )
                 }
             }
@@ -138,7 +145,11 @@ fun MainScreen(
                 composable(route = BottomNavItem.Home.route) { HomeRoute() }
                 composable(route = BottomNavItem.Group.route) { GroupRoute() }
                 composable(route = BottomNavItem.Gallery.route) { GalleryScreen() }
-                composable(route = BottomNavItem.MyPage.route) { MypageScreen() }
+                composable(route = BottomNavItem.MyPage.route) {
+                    MyPageRoute(
+                        onNavigateToLogin = onNavigateToLogin,
+                    )
+                }
             }
 
             GroupDropdownMenu(
