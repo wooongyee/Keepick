@@ -11,11 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,7 +26,6 @@ import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
 import com.ssafy.keepick.feature.group.components.GroupAlbumItem
 import com.ssafy.keepick.feature.group.components.GroupAlbumTabView
 import com.ssafy.keepick.feature.group.components.GroupMemberItem
-import com.ssafy.keepick.feature.group.components.GroupTopBar
 
 @OptIn(ExperimentalFoundationApi::class) // stickyHeader를 사용하기 위해 추가
 @Composable
@@ -48,103 +42,86 @@ fun GroupScreen(
     var selectedTabIndex by remember { mutableStateOf(0) }
     val tabTitles = listOf("타임라인 앨범", "티어 앨범", "하이라이트 앨범")
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        topBar = {
-            GroupTopBar(
-                groupName = groupName,
-                onAddClick = onAddClick,
-                onVideoClick = onVideoClick
-            )
-        },
-        floatingActionButton = {
-            FloatingActionButton(onClick = { /* TODO: 카메라/비디오 기능 실행 */ }) {
-                Icon(imageVector = Icons.Default.Videocam, contentDescription = "영상통화")
-            }
-        }
-    ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-        ) {
-            // 그룹 정보 (상단 고정되지 않는 부분)
-            item {
-                Column(modifier = Modifier.padding(vertical = 16.dp)) {
-                    Text(
-                        text = "그룹 정보",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 16.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(
-                            items = members,
-                            key = { member -> "member_${member.id}" }
-                        ) { member ->
-                            GroupMemberItem(
-                                imageUrl = member.profileImageUrl,
-                                name = member.name,
-                                isOnline = member.isOnline
-                            )
-                        }
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        // 그룹 정보 (상단 고정되지 않는 부분)
+        item {
+            Column(modifier = Modifier.padding(vertical = 16.dp)) {
+                Text(
+                    text = "그룹 정보",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(
+                        items = members,
+                        key = { member -> "member_${member.id}" }
+                    ) { member ->
+                        GroupMemberItem(
+                            imageUrl = member.profileImageUrl,
+                            name = member.name,
+                            isOnline = member.isOnline
+                        )
                     }
                 }
             }
+        }
 
-            // 커스텀 탭 (스크롤 시 상단에 고정됨)
-            stickyHeader {
-                GroupAlbumTabView(
-                    selectedTabIndex = selectedTabIndex,
-                    tabs = tabTitles,
-                    onTabSelected = { newIndex -> selectedTabIndex = newIndex }
+        // 커스텀 탭 (스크롤 시 상단에 고정됨)
+        stickyHeader {
+            GroupAlbumTabView(
+                selectedTabIndex = selectedTabIndex,
+                tabs = tabTitles,
+                onTabSelected = { newIndex -> selectedTabIndex = newIndex }
+            )
+        }
+// --- selectedTabIndex에 따라 다른 리스트를 렌더링 ---
+        when (selectedTabIndex) {
+            0 -> items(
+                items = timelineAlbums,
+                key = { album -> "timeline_${album.id}" } // 고유한 키를 위해 접두사 추가
+            ) { album ->
+                GroupAlbumItem(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    thumbnailUrl = album.thumbnailUrl,
+                    title = album.title,
+                    photoCount = album.photoCount,
+                    date = album.date,
+                    creator = album.creator
                 )
             }
-// --- selectedTabIndex에 따라 다른 리스트를 렌더링 ---
-            when (selectedTabIndex) {
-                0 -> items(
-                    items = timelineAlbums,
-                    key = { album -> "timeline_${album.id}" } // 고유한 키를 위해 접두사 추가
-                ) { album ->
-                    GroupAlbumItem(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        thumbnailUrl = album.thumbnailUrl,
-                        title = album.title,
-                        photoCount = album.photoCount,
-                        date = album.date,
-                        creator = album.creator
-                    )
-                }
-                1 -> items(
-                    items = tierAlbums,
-                    key = { album -> "tier_${album.id}" }
-                ) { album ->
-                    GroupAlbumItem(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        thumbnailUrl = album.thumbnailUrl,
-                        title = album.title,
-                        photoCount = album.photoCount,
-                        date = album.date,
-                        creator = album.creator
-                    )
-                }
-                2 -> items(
-                    items = highlightAlbums,
-                    key = { album -> "highlight_${album.id}" }
-                ) { album ->
-                    GroupAlbumItem(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        thumbnailUrl = album.thumbnailUrl,
-                        title = album.title,
-                        photoCount = album.photoCount,
-                        date = album.date,
-                        creator = album.creator
-                    )
-                }
+            1 -> items(
+                items = tierAlbums,
+                key = { album -> "tier_${album.id}" }
+            ) { album ->
+                GroupAlbumItem(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    thumbnailUrl = album.thumbnailUrl,
+                    title = album.title,
+                    photoCount = album.photoCount,
+                    date = album.date,
+                    creator = album.creator
+                )
+            }
+            2 -> items(
+                items = highlightAlbums,
+                key = { album -> "highlight_${album.id}" }
+            ) { album ->
+                GroupAlbumItem(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    thumbnailUrl = album.thumbnailUrl,
+                    title = album.title,
+                    photoCount = album.photoCount,
+                    date = album.date,
+                    creator = album.creator
+                )
             }
         }
     }

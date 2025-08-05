@@ -1,7 +1,12 @@
 package com.ssafy.keepick.feature.main
 
-import android.annotation.SuppressLint
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -10,6 +15,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -21,15 +29,26 @@ import androidx.navigation.compose.rememberNavController
 import com.ssafy.keepick.app.navigation.BottomNavItem
 import com.ssafy.keepick.feature.gallery.GalleryScreen
 import com.ssafy.keepick.feature.group.GroupRoute
+import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
+import com.ssafy.keepick.feature.group.components.GroupTopBar
 import com.ssafy.keepick.feature.home.HomeRoute
+import com.ssafy.keepick.feature.home.components.HomeTopBar
 import com.ssafy.keepick.feature.mypage.MypageScreen
 
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit // 이 파라미터는 현재 사용되지 않으므로, 필요 없다면 제거 가능합니다.
 ) {
     val bottomNavController = rememberNavController()
+    val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
+    // --- 그룹 선택 관련 상태를 MainScreen에서 관리 ---
+    var isMenuExpanded by remember { mutableStateOf(false) }
+    var currentGroupName by remember { mutableStateOf("키픽 공식 그룹") }
+    val groups = listOf("키픽 공식 그룹", "SSAFY 13기 D207", "가족방", "스터디 그룹")
+
     val bottomNavItems = listOf(
         BottomNavItem.Home,
         BottomNavItem.Group,
@@ -38,13 +57,25 @@ fun MainScreen(
     )
 
     Scaffold(
-        bottomBar = {
-            NavigationBar(
-                containerColor = Color.White // backgroundColor -> containerColor
-            ) {
-                val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
+        topBar = {
+            when (currentDestination?.route) {
+                BottomNavItem.Home.route -> {
+                    HomeTopBar(onNotificationClick = { /* TODO: 알림 화면으로 이동 */ })
+                }
 
+                BottomNavItem.Group.route -> {
+                    GroupTopBar(
+                        groupName = currentGroupName,
+                        onBackClick = { /* 최상위 화면에서는 보통 사용하지 않음 */ },
+                        onGroupSelectClick = { isMenuExpanded = !isMenuExpanded },
+                        onAddClick = { /* TODO: 콘텐츠 추가 */ },
+                        onVideoClick = { /* TODO: 영상통화 */ }
+                    )
+                }
+            }
+        },
+        bottomBar = {
+            NavigationBar(containerColor = Color.White) {
                 bottomNavItems.forEach { screen ->
                     NavigationBarItem(
                         selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
@@ -57,44 +88,56 @@ fun MainScreen(
                                 restoreState = true
                             }
                         },
-                        icon = {
-                            Icon(imageVector = screen.icon, contentDescription = screen.title)
-                        },
-                        label = {
-                            Text(screen.title)
-                        },
-                        // 색상 설정을 material3 방식으로 변경
+                        icon = { Icon(imageVector = screen.icon, contentDescription = screen.title) },
+                        label = { Text(screen.title) },
                         colors = NavigationBarItemDefaults.colors(
                             selectedIconColor = Color.Black,
                             selectedTextColor = Color.Black,
                             unselectedIconColor = Color.Gray,
                             unselectedTextColor = Color.Gray,
-                            indicatorColor = Color.Transparent // 선택 시 배경 인디케이터 투명 처리
+                            indicatorColor = Color.Transparent
                         )
                     )
                 }
             }
+        },
+        floatingActionButton = {
+            if (currentDestination?.route == BottomNavItem.Group.route) {
+                FloatingActionButton(onClick = { /* TODO: 카메라/비디오 기능 실행 */ }) {
+                    Icon(imageVector = Icons.Default.Videocam, contentDescription = "영상통화")
+                }
+            }
         }
     ) { innerPadding ->
-        NavHost(
-            navController = bottomNavController,
-            startDestination = BottomNavItem.Home.route,
-            modifier = Modifier.padding(innerPadding)
+        Box(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
         ) {
-            composable(route = BottomNavItem.Home.route) {
-                HomeRoute(
-//                    onNavigateToLogin = onNavigateToLogin
-                )
+            // 2. NavHost는 이제 부모 Box를 꽉 채우도록 설정합니다.
+            //    패딩은 부모 Box가 이미 처리했으므로 여기서는 Modifier만 전달합니다.
+            NavHost(
+                navController = bottomNavController,
+                startDestination = BottomNavItem.Home.route,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                composable(route = BottomNavItem.Home.route) { HomeRoute() }
+                composable(route = BottomNavItem.Group.route) { GroupRoute() }
+                composable(route = BottomNavItem.Gallery.route) { GalleryScreen() }
+                composable(route = BottomNavItem.MyPage.route) { MypageScreen() }
             }
-            composable(route = BottomNavItem.Group.route) {
-                GroupRoute() // 임시 스크린
-            }
-            composable(route = BottomNavItem.Gallery.route) {
-                GalleryScreen() // 임시 스크린
-            }
-            composable(route = BottomNavItem.MyPage.route) {
-                MypageScreen() // 임시 스크린
-            }
+
+            GroupDropdownMenu(
+                expanded = isMenuExpanded,
+                groups = groups,
+                onGroupSelected = { selectedGroup ->
+                    currentGroupName = selectedGroup
+                    isMenuExpanded = false
+                },
+                onDismissRequest = {
+                    isMenuExpanded = false
+                }
+            )
         }
     }
 }

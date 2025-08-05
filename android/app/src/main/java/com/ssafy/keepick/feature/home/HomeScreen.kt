@@ -7,12 +7,10 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -26,7 +24,6 @@ import com.ssafy.keepick.R
 import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
 import com.ssafy.keepick.feature.home.components.AlbumItem
 import com.ssafy.keepick.feature.home.components.GroupItem
-import com.ssafy.keepick.feature.home.components.HomeTopBar
 
 @Composable
 fun HomeScreen() {
@@ -60,54 +57,46 @@ fun HomeScreen() {
             )
         }
     }
-
-    Scaffold(
-        topBar = {
-            HomeTopBar(onNotificationClick = { /* TODO: 알림 화면으로 이동 */ })
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(2),
+        modifier = Modifier
+            .fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Text("내가 속한 그룹", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
         }
-    ) { paddingValues ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues), // Scaffold의 패딩을 적용하여 TopBar와 겹치지 않게 합니다.
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Text("내가 속한 그룹", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
 
-            items(
-                items = displayGroups,
-                key = { group -> "group_${group.id}" },
-                span = { GridItemSpan(maxLineSpan) }
-            ) { group ->
-                GroupItem(
-                    groupImageUrl = group.imageUrl,
-                    groupName = group.name,
-                    groupDetail = group.detail,
-                    memberImageUrls = group.memberImageUrls
-                )
-            }
+        items(
+            items = displayGroups,
+            key = { group -> "group_${group.id}" },
+            span = { GridItemSpan(maxLineSpan) }
+        ) { group ->
+            GroupItem(
+                groupImageUrl = group.imageUrl,
+                groupName = group.name,
+                groupDetail = group.detail,
+                memberImageUrls = group.memberImageUrls
+            )
+        }
 
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                Spacer(modifier = Modifier.height(32.dp))
-                Text("내 그룹 앨범들", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(16.dp))
-            }
+        item(span = { GridItemSpan(maxLineSpan) }) {
+            Spacer(modifier = Modifier.height(32.dp))
+            Text("내 그룹 앨범들", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
-            items(
-                items = displayAlbums,
-                key = { album -> "album_${album.id}" }
-            ) { album ->
-                AlbumItem(
-                    thumbnailUrl = album.thumbnailUrl,
-                    albumTitle = album.title,
-                    photoCount = album.photoCount
-                )
-            }
+        items(
+            items = displayAlbums,
+            key = { album -> "album_${album.id}" }
+        ) { album ->
+            AlbumItem(
+                thumbnailUrl = album.thumbnailUrl,
+                albumTitle = album.title,
+                photoCount = album.photoCount
+            )
         }
     }
 }
