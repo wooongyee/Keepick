@@ -1,7 +1,7 @@
 "use client"; // useSearchParams를 사용하기 위해 클라이언트 컴포넌트로 전환
 
 import { useSearchParams } from "next/navigation";
-import { SocialLoginButton } from "@/features/auth";
+import { SocialLoginButton } from "@/features/auth/ui/SocialLoginButton";
 
 // 에러 메시지를 표시할 컴포넌트
 function ErrorMessage() {
@@ -35,6 +35,7 @@ export function LoginWidget() {
         <div className="space-y-4">
           <SocialLoginButton provider="kakao" />
           <SocialLoginButton provider="naver" />
+          <SocialLoginButton provider="google" />
         </div>
       </div>
     </div>

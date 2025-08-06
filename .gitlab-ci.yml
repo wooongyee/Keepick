@@ -27,3 +27,4 @@ Vercel-Deploy:
   only:
     - master
     - frontend
+    - fe/feat/prototype
