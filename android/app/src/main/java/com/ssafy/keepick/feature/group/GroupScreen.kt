@@ -35,6 +35,9 @@ fun GroupScreen(
     timelineAlbums: List<DisplayGroupAlbum>,
     tierAlbums: List<DisplayGroupAlbum>,
     highlightAlbums: List<DisplayGroupAlbum>,
+    onTimelineAlbumClick: (albumId: String) -> Unit,
+    onTierAlbumClick: (albumId: String) -> Unit,
+    onHighlightAlbumClick: (albumId: String) -> Unit,
     onAddClick: () -> Unit,
     onVideoClick: () -> Unit,
 ) {
@@ -94,7 +97,8 @@ fun GroupScreen(
                     title = album.title,
                     photoCount = album.photoCount,
                     date = album.date,
-                    creator = album.creator
+                    creator = album.creator,
+                    onClick = { onTimelineAlbumClick(album.id.toString()) }
                 )
             }
             1 -> items(
@@ -107,7 +111,8 @@ fun GroupScreen(
                     title = album.title,
                     photoCount = album.photoCount,
                     date = album.date,
-                    creator = album.creator
+                    creator = album.creator,
+                    onClick = { onTierAlbumClick(album.id.toString()) }
                 )
             }
             2 -> items(
@@ -120,7 +125,8 @@ fun GroupScreen(
                     title = album.title,
                     photoCount = album.photoCount,
                     date = album.date,
-                    creator = album.creator
+                    creator = album.creator,
+                    onClick = { onHighlightAlbumClick(album.id.toString()) }
                 )
             }
         }
@@ -140,6 +146,9 @@ private fun GroupScreenPreview() {
             timelineAlbums = albums, // Preview에서는 동일 데이터 재사용 가능
             tierAlbums = emptyList(),
             highlightAlbums = albums.take(1),
+            onTimelineAlbumClick = {},
+            onTierAlbumClick = {},
+            onHighlightAlbumClick = {},
             onAddClick = {},
             onVideoClick = {}
         )

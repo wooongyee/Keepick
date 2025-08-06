@@ -1,7 +1,7 @@
 package com.ssafy.keepick.feature.group.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,10 +31,13 @@ fun GroupAlbumItem(
     title: String,
     photoCount: Int,
     date: String,
-    creator: String
+    creator: String,
+    onClick: () -> Unit,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(

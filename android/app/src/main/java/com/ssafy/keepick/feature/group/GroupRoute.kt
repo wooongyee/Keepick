@@ -9,8 +9,7 @@ import com.ssafy.keepick.R
 
 @Composable
 fun GroupRoute(
-    // navController: NavController,
-    // groupId: String
+    onNavigateToTierMaker : (albumId: String) -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -57,6 +56,11 @@ fun GroupRoute(
         timelineAlbums = timelineAlbums,
         tierAlbums = tierAlbums,
         highlightAlbums = highlightAlbums,
+        onTimelineAlbumClick = { /*TODO*/ },
+        onTierAlbumClick = {
+            onNavigateToTierMaker(it)
+        },
+        onHighlightAlbumClick = { /*TODO*/ },
         onAddClick = { /*TODO*/ },
         onVideoClick = { /*TODO*/ }
     )

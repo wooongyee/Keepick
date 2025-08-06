@@ -12,6 +12,7 @@ import com.ssafy.keepick.core.util.AppConstants
 import com.ssafy.keepick.feature.invite.InviteRoute
 import com.ssafy.keepick.feature.login.LoginRoute
 import com.ssafy.keepick.feature.main.MainScreen
+import com.ssafy.keepick.feature.tier.tiermaker.TierMakerRoute
 
 
 @Composable
@@ -57,7 +58,12 @@ fun KeepickNavHost(
         }
 
         composable(NavRoute.Main.route) {
-            MainScreen(onNavigateToLogin = { navController.navigateToLogin() })
+            MainScreen(
+                onNavigateToLogin = { navController.navigate(NavRoute.Login.route) },
+                onNavigateToTierMaker = { albumId ->
+                    navController.navigate(NavRoute.TierMaker.createRoute(albumId))
+                }
+            )
         }
 
         composable(
@@ -78,6 +84,13 @@ fun KeepickNavHost(
                         launchSingleTop = true
                     }
                 }
+            )
+        }
+        composable(route = NavRoute.TierMaker.route) { backStackEntry ->
+            val albumId = backStackEntry.arguments?.getString(NavRoute.TierMaker.ALBUM_ID_ARG)
+            TierMakerRoute(
+                albumId = albumId ?: "unknown",
+                onNavigateBack = { navController.popBackStack() }
             )
         }
     }

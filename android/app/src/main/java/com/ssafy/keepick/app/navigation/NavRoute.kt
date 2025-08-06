@@ -21,6 +21,10 @@ sealed class NavRoute(val route: String) {
         const val INVITE_CODE_ARG = "inviteCode"
         fun createRoute(inviteCode: String): String = "invite/$inviteCode"
     }
+     object TierMaker : NavRoute("tierMaker/{albumId}") {
+         const val ALBUM_ID_ARG = "albumId"
+         fun createRoute(albumId: String) = "tierMaker/$albumId"
+     }
 }
 sealed class BottomNavItem(
     val title: String,
