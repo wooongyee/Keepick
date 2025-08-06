@@ -12,11 +12,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,6 +35,7 @@ import com.ssafy.keepick.feature.tier.tieralbum.components.TierCardDeck
 import com.ssafy.keepick.feature.tier.tieralbum.components.TierPhotoGrid
 import com.ssafy.keepick.feature.tier.tieralbum.components.TierSelector
 import com.ssafy.keepick.feature.tier.tiermaker.Tier
+import kotlinx.coroutines.launch
 
 @Composable
 fun TierAlbumScreen(
@@ -43,6 +47,17 @@ fun TierAlbumScreen(
     onEditClick: () -> Unit,
     onCopyClick: () -> Unit
 ) {
+    // PagerState를 Screen 레벨에서 생성 및 관리
+    val pagerState = rememberPagerState(pageCount = { selectedTier?.items?.size ?: 0 })
+    val coroutineScope = rememberCoroutineScope()
+
+    // selectedTier가 변경될 때마다 pagerState를 초기화
+    LaunchedEffect(selectedTier) {
+        if (selectedTier != null && selectedTier.items.isNotEmpty()) {
+            pagerState.scrollToPage(0)
+        }
+    }
+
     Scaffold(
         topBar = {
             TierAlbumTopAppBar(
@@ -101,14 +116,21 @@ fun TierAlbumScreen(
                 // 메인 카드 덱
                 TierCardDeck(
                     photos = selectedTier.items,
-                    modifier = Modifier.height(350.dp) // 카드 덱 영역 높이 지정
+                    modifier = Modifier.height(350.dp),
+                    pagerState = pagerState
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 하단 전체 사진 그리드 (개선된 UI)
+                // 하단 전체 사진 그리드
                 TierPhotoGrid(
                     photos = selectedTier.items,
+                    onPhotoClick = { index ->
+                        // 클릭된 사진 인덱스로 카드 덱 스크롤
+                        coroutineScope.launch {
+                            pagerState.animateScrollToPage(index)
+                        }
+                    },
                     modifier = Modifier
                         .weight(1f)
                         .padding(horizontal = 16.dp)

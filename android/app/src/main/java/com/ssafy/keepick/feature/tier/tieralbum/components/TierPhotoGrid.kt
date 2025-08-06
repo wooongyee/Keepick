@@ -2,6 +2,7 @@
 
 package com.ssafy.keepick.feature.tier.tieralbum.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
@@ -26,6 +27,7 @@ import com.ssafy.keepick.feature.group.DisplayGroupAlbum
 @Composable
 fun TierPhotoGrid(
     photos: List<DisplayGroupAlbum>,
+    onPhotoClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (photos.isEmpty()) return
@@ -42,7 +44,8 @@ fun TierPhotoGrid(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(photos, key = { it.id }) { photo ->
+            items(photos.size) { index ->
+                val photo = photos[index]
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(photo.thumbnailUrl)
@@ -53,6 +56,7 @@ fun TierPhotoGrid(
                     modifier = Modifier
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(8.dp))
+                        .clickable { onPhotoClick(index) }
                 )
             }
         }

@@ -1,17 +1,14 @@
-// feature/tier/tieralbum/components/TierCardDeck.kt
-
 package com.ssafy.keepick.feature.tier.tieralbum.components
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -21,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -29,11 +27,13 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.ssafy.keepick.feature.group.DisplayGroupAlbum
 import kotlin.math.absoluteValue
+import kotlin.math.sin
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TierCardDeck(
     photos: List<DisplayGroupAlbum>,
+    pagerState: PagerState,
     modifier: Modifier = Modifier
 ) {
     if (photos.isEmpty()) {
@@ -43,32 +43,41 @@ fun TierCardDeck(
         return
     }
 
-    val pagerState = rememberPagerState(pageCount = { photos.size })
-
     HorizontalPager(
         state = pagerState,
         modifier = modifier,
-        contentPadding = PaddingValues(horizontal = 60.dp), // 양 옆 카드가 보이도록 패딩 조절
+        contentPadding = PaddingValues(horizontal = 60.dp),
     ) { page ->
         val photo = photos[page]
         val pageOffset = (
             (pagerState.currentPage - page) + pagerState.currentPageOffsetFraction
-            ).absoluteValue
+            )
 
-        // 페이지 오프셋에 따라 카드에 시각 효과 적용
+        val pageOffsetAbs = pageOffset.absoluteValue
+        // 페이지가 멀어질수록 작아짐 (최소 75% 크기)
+        val scale = 1f - (pageOffsetAbs * 0.25f)
+        // 페이지가 멀어질수록 투명해짐 (최소 50% 투명도)
+        val alpha = 1f - (pageOffsetAbs * 0.5f)
+        // 좌우로 밀 때 Y축 기준 회전 (비스듬한 효과)
+        val rotationY = pageOffset * -45f
+        // 뒤로 갈 때 왼쪽 아래로 빠지는 듯한 효과 (곡선 이동)
+
         val cardModifier = Modifier
-            .fillMaxHeight()
             .aspectRatio(0.7f) // 카드 비율
             .graphicsLayer {
-                // 현재 페이지가 아닌 카드들을 뒤로 보내고 작게 만듦
-                translationX = size.width * pageOffset * 0.5f
-                scaleY = 1f - (pageOffset * 0.2f)
-                scaleX = 1f - (pageOffset * 0.2f)
-                alpha = 1f - (pageOffset * 0.4f)
-                // 카드가 넘어가는 듯한 회전 효과
-                cameraDistance = 12 * density
-                rotationY = pageOffset * -45f
+                val calculatedTranslationX = pageOffset * (size.width / 4)
+                val calculatedTranslationY = pageOffsetAbs * 40f * sin(pageOffsetAbs * 3.14f)
+
+                this.translationX = calculatedTranslationX
+                this.translationY = calculatedTranslationY
+                this.scaleX = scale
+                this.scaleY = scale
+                this.alpha = alpha
+                this.cameraDistance = 12 * density
+                this.rotationY = rotationY
             }
+            // 렌더링 이슈 해결: graphicsLayer 변환 후 clip을 적용하여 깨짐 방지
+            .clip(RoundedCornerShape(16.dp))
 
         PhotoCard(photo = photo, modifier = cardModifier)
     }
@@ -79,6 +88,7 @@ private fun PhotoCard(
     photo: DisplayGroupAlbum,
     modifier: Modifier = Modifier
 ) {
+    // Card의 기본 clip을 사용하지 않고, 상위 Modifier에서 제어
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
