@@ -17,4 +17,4 @@
 
 ## 📋 Pull Request 템플릿
 
-📌 [PR Template 보기](./docs/pr-template.md)
+📌 [PR Template 보기](./.gitlab/merge_request_templates/pr-template.md)
