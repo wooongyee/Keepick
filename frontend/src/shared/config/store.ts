@@ -1,10 +1,12 @@
 import { configureStore } from "@reduxjs/toolkit";
-import authReducer from "@/shared/store/features/auth/authSlice";
+import authReducer from "@/features/auth/model/authSlice";
+import { userReducer } from "@/entities/user";
 
 export const makeStore = () => {
   return configureStore({
     reducer: {
       auth: authReducer,
+      user: userReducer,
     },
     middleware: (getDefaultMiddleware) =>
       getDefaultMiddleware({

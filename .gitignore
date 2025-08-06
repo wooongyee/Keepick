@@ -45,6 +45,7 @@ yarn-error.log*
 pnpm-debug.log*
 .pnp.*
 .npm
+.claude
 
 # ===================================================================
 # 4. Java / Gradle 관련
@@ -92,3 +93,10 @@ local.properties
 # 기타 생성 파일
 /captures/
 generated/
+# 생성된 파일
+generated/
+
+
+# 6. 테스트용 backend
+backend/
+media-server/
