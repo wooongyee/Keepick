@@ -14,9 +14,21 @@ import com.ssafy.keepick.feature.group.DisplayGroupAlbum
 
 private const val TAG = "TierMaker"
 
+// --- Data Classes ---
 data class Tier(val id: String, val title: String, val items: List<DisplayGroupAlbum>)
 data class DragInfo(val item: DisplayGroupAlbum, val sourceTierId: String, val sourceIndex: Int)
 data class DropTargetInfo(val targetTierId: String, val targetIndex: Int)
+
+/** 배틀 상태를 관리하는 데이터 클래스 */
+data class Battle(
+    val newPhoto: DisplayGroupAlbum,
+    val opponents: List<DisplayGroupAlbum>,
+    val currentOpponentIndex: Int,
+    val targetTierId: String,
+    val initialTargetIndex: Int,
+    val sourceInfo: DragInfo
+)
+
 private fun Int.toDrawableUri(context: Context): String {
     return Uri.parse("android.resource://${context.packageName}/$this").toString()
 }
@@ -33,7 +45,9 @@ fun TierMakerRoute(
             (1..15).map {
                 DisplayGroupAlbum(
                     id = it,
-                    thumbnailUrl = if(it < 5) R.drawable.dummy_group.toDrawableUri(context) else R.drawable.dummy_album.toDrawableUri(context),
+                    thumbnailUrl = if (it < 5) R.drawable.dummy_group.toDrawableUri(context)
+                    else if (it < 10) R.drawable.dummy_profile.toDrawableUri(context)
+                    else R.drawable.dummy_album.toDrawableUri(context),
                     title = "사진 $it",
                     photoCount = 0, date = "", creator = ""
                 )
@@ -57,6 +71,62 @@ fun TierMakerRoute(
     var dragInfo by remember { mutableStateOf<DragInfo?>(null) }
     var dropTargetInfo by remember { mutableStateOf<DropTargetInfo?>(null) }
     var isBattleMode by remember { mutableStateOf(false) }
+    var battleState by remember { mutableStateOf<Battle?>(null) }
+
+    val insertItemIntoTier = { itemToMove: DisplayGroupAlbum, sourceTierId: String, targetTierId: String, finalIndex: Int ->
+        val newTiers = tiers
+            .map { tier ->
+                if (tier.id == sourceTierId) tier.copy(items = tier.items.filterNot { it.id == itemToMove.id })
+                else tier
+            }
+            .map { tier ->
+                if (tier.id == targetTierId) {
+                    val newItems = tier.items.toMutableList().apply { add(finalIndex.coerceIn(0, size), itemToMove) }
+                    tier.copy(items = newItems)
+                } else {
+                    tier
+                }
+            }
+        tiers = newTiers
+        Log.d(TAG, "Tiers updated. Moved ${itemToMove.title} from $sourceTierId to $targetTierId at index $finalIndex")
+    }
+
+    // !! 핵심 수정: 배틀 결과 처리 로직을 사용자의 의도에 맞게 완벽히 수정 !!
+    val handleBattleResult = { newPhotoWon: Boolean ->
+        val currentBattle = battleState
+        if (currentBattle != null) {
+            if (newPhotoWon) {
+                // "새로운 사진"이 더 높다 -> 다음으로 더 높은 순위의 상대와 배틀 계속
+                val nextOpponentIndex = currentBattle.currentOpponentIndex + 1
+                if (nextOpponentIndex < currentBattle.opponents.size) {
+                    Log.d(TAG, "Battle Continue: New photo won. Challenging next higher rank...")
+                    battleState = currentBattle.copy(currentOpponentIndex = nextOpponentIndex)
+                } else {
+                    // 모든 상대에게 이겼다 -> 최고 순위에 삽입
+                    val finalIndex = currentBattle.initialTargetIndex - currentBattle.opponents.size
+                    Log.d(TAG, "Battle End: New photo won all battles. Inserting at top position: $finalIndex.")
+                    insertItemIntoTier(currentBattle.newPhoto, currentBattle.sourceInfo.sourceTierId, currentBattle.targetTierId, finalIndex)
+                    battleState = null // 배틀 종료
+                }
+            } else {
+                // "기존 사진"이 더 높다 -> 배틀 종료, 현재 상대 바로 뒤에 삽입
+                val opponent = currentBattle.opponents[currentBattle.currentOpponentIndex]
+                val targetTier = tiers.first { it.id == currentBattle.targetTierId }
+
+                // 드래그 중인 아이템을 제외한 리스트에서 상대방의 현재 인덱스를 찾아야 정확함
+                val opponentIndexInFilteredList = targetTier.items
+                    .filterNot { it.id == currentBattle.newPhoto.id }
+                    .indexOf(opponent)
+
+                // 삽입 위치는 상대방 인덱스 바로 뒤(+1)가 됨
+                val finalIndex = opponentIndexInFilteredList + 1
+
+                Log.d(TAG, "Battle End: New photo lost against ${opponent.title}. Inserting at index $finalIndex (after opponent).")
+                insertItemIntoTier(currentBattle.newPhoto, currentBattle.sourceInfo.sourceTierId, currentBattle.targetTierId, finalIndex)
+                battleState = null // 배틀 종료
+            }
+        }
+    }
 
     TierMakerScreen(
         albumTitle = "제주도 제일 재밌었던 곳 뽑기!",
@@ -64,12 +134,12 @@ fun TierMakerRoute(
         isBattleMode = isBattleMode,
         draggedItem = dragInfo?.item,
         dropTargetInfo = dropTargetInfo,
+        battleState = battleState,
         onDragStart = { item, sourceTierId ->
             val sourceTier = tiers.find { it.id == sourceTierId }
             val sourceIndex = sourceTier?.items?.indexOf(item) ?: -1
             if (sourceIndex != -1) {
                 dragInfo = DragInfo(item, sourceTierId, sourceIndex)
-                Log.d(TAG, "DragStart: ${item.title} from tier $sourceTierId at index $sourceIndex")
             }
         },
         onDragOver = { targetTierId, targetIndex ->
@@ -79,60 +149,43 @@ fun TierMakerRoute(
         },
         onDrop = { targetTierId, targetIndex ->
             val currentDrag = dragInfo
-            Log.d(TAG, "onDrop: Dragging ${currentDrag?.item?.title} to tier $targetTierId at index $targetIndex")
-
             if (currentDrag != null) {
-                val sourceTierId = currentDrag.sourceTierId
-                val itemToMove = currentDrag.item
+                val targetTier = tiers.firstOrNull { it.id == targetTierId }
+                if (targetTier != null) {
+                    val isMeaningfulDrop = !(targetTierId == currentDrag.sourceTierId && targetIndex == currentDrag.sourceIndex)
+                    if (isMeaningfulDrop) {
+                        if (isBattleMode && targetTier.items.isNotEmpty() && targetTierId != "unranked") {
+                            val opponents = targetTier.items
+                                .subList(0, targetIndex)
+                                .filterNot { it.id == currentDrag.item.id }
+                                .asReversed()
 
-                tiers = tiers.toMutableList().apply {
-                    val sourceTierIndex = indexOfFirst { it.id == sourceTierId }
-                    val targetTierIndex = indexOfFirst { it.id == targetTierId }
-
-                    if (sourceTierIndex == -1 || targetTierIndex == -1) {
-                        Log.e(TAG, "onDrop: Invalid tier index.")
-                        return@apply
-                    }
-
-                    if (sourceTierId == targetTierId) {
-                        // 같은 티어 내에서 이동
-                        val tier = this[sourceTierIndex]
-                        val newList = tier.items.toMutableList().apply {
-                            val movedItem = removeAt(currentDrag.sourceIndex)
-                            // 드롭 시점에 계산된 최종 인덱스를 사용
-                            val finalIndex = targetIndex.coerceIn(0, size)
-                            add(finalIndex, movedItem)
+                            if (opponents.isNotEmpty()) {
+                                Log.d(TAG, "Battle initiated. Opponents: ${opponents.map { it.title }}")
+                                battleState = Battle(
+                                    newPhoto = currentDrag.item,
+                                    opponents = opponents,
+                                    currentOpponentIndex = 0,
+                                    targetTierId = targetTierId,
+                                    initialTargetIndex = targetIndex,
+                                    sourceInfo = currentDrag
+                                )
+                            } else {
+                                insertItemIntoTier(currentDrag.item, currentDrag.sourceTierId, targetTierId, targetIndex)
+                            }
+                        } else {
+                            insertItemIntoTier(currentDrag.item, currentDrag.sourceTierId, targetTierId, targetIndex)
                         }
-                        this[sourceTierIndex] = tier.copy(items = newList)
-                        Log.d(TAG, "Moved within tier $sourceTierId from ${currentDrag.sourceIndex} to $targetIndex")
-
-                    } else {
-                        // 다른 티어로 이동
-                        // 1. 소스에서 제거
-                        val sourceTier = this[sourceTierIndex]
-                        val newSourceItems = sourceTier.items.filterNot { it.id == itemToMove.id }
-                        this[sourceTierIndex] = sourceTier.copy(items = newSourceItems)
-                        Log.d(TAG, "Removed from tier $sourceTierId. New count: ${newSourceItems.size}")
-
-                        // 2. 타겟에 추가 (상태 불일치 방지를 위해 수정된 리스트에서 타겟을 다시 찾음)
-                        val updatedTargetTierIndex = indexOfFirst { it.id == targetTierId }
-                        val targetTier = this[updatedTargetTierIndex]
-                        val newTargetItems = targetTier.items.toMutableList().apply {
-                            // 드롭 시점에 계산된 최종 인덱스를 사용
-                            val insertionIndex = targetIndex.coerceIn(0, size)
-                            add(insertionIndex, itemToMove)
-                        }
-                        this[updatedTargetTierIndex] = targetTier.copy(items = newTargetItems)
-                        Log.d(TAG, "Added to tier $targetTierId. New count: ${newTargetItems.size}")
                     }
                 }
             }
         },
         onDragOperationEnd = {
-            Log.d(TAG, "Drag operation ended.")
             dragInfo = null
             dropTargetInfo = null
         },
+        onBattleResult = handleBattleResult,
+        onDismissBattle = { battleState = null },
         onNavigateBack = onNavigateBack,
         onSaveClick = { /* TODO */ },
         onShareClick = { /* TODO */ },

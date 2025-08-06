@@ -13,6 +13,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
 import com.ssafy.keepick.feature.group.DisplayGroupAlbum
+import com.ssafy.keepick.feature.tier.tiermaker.components.BattleDialog
 import com.ssafy.keepick.feature.tier.tiermaker.components.TierMakerTopAppBar
 import com.ssafy.keepick.feature.tier.tiermaker.components.TierRow
 import com.ssafy.keepick.feature.tier.tiermaker.components.UnrankedPhotos
@@ -24,10 +25,13 @@ fun TierMakerScreen(
     isBattleMode: Boolean,
     draggedItem: DisplayGroupAlbum?,
     dropTargetInfo: DropTargetInfo?,
+    battleState: Battle?, // battleState 파라미터 추가
     onDragStart: (item: DisplayGroupAlbum, sourceTierId: String) -> Unit,
     onDragOver: (targetTierId: String, targetIndex: Int) -> Unit,
     onDrop: (targetTierId: String, targetIndex: Int) -> Unit,
     onDragOperationEnd: () -> Unit,
+    onBattleResult: (Boolean) -> Unit, // 배틀 결과 콜백
+    onDismissBattle: () -> Unit, // 배틀 다이얼로그 닫기 콜백
     onNavigateBack: () -> Unit,
     onSaveClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -89,6 +93,16 @@ fun TierMakerScreen(
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+        // !! 핵심 추가: battleState가 null이 아닐 때 BattleDialog를 표시 !!
+        if (battleState != null) {
+            val opponent = battleState.opponents[battleState.currentOpponentIndex]
+            BattleDialog(
+                newPhoto = battleState.newPhoto,
+                opponentPhoto = opponent,
+                onResult = onBattleResult,
+                onDismiss = onDismissBattle
+            )
         }
     }
 }
