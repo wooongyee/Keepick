@@ -46,7 +46,7 @@ import com.ssafy.keepick.feature.mypage.MyPageRoute
 @Composable
 fun MainScreen(
     onNavigateToLogin: () -> Unit,
-    onNavigateToTierMaker: (String) -> Unit
+    onNavigateToTierAlbum: (String) -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -146,7 +146,7 @@ fun MainScreen(
                 composable(route = BottomNavItem.Home.route) { HomeRoute() }
                 composable(route = BottomNavItem.Group.route) {
                     GroupRoute(
-                        onNavigateToTierMaker = onNavigateToTierMaker
+                        onNavigateToTierMaker = onNavigateToTierAlbum
                     )
                 }
                 composable(route = BottomNavItem.Gallery.route) { GalleryScreen() }

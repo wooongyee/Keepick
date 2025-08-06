@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.graphics.vector.ImageVector
+
 sealed class NavRoute(val route: String) {
     data object Login : NavRoute("login?postLoginUri={postLoginUri}") {
         const val POST_LOGIN_URI_ARG = "postLoginUri"
@@ -16,16 +17,24 @@ sealed class NavRoute(val route: String) {
             return "login?postLoginUri=$encodedUri"
         }
     }
+
     data object Main : NavRoute("main")
     data object Invite : NavRoute("invite/{inviteCode}") {
         const val INVITE_CODE_ARG = "inviteCode"
         fun createRoute(inviteCode: String): String = "invite/$inviteCode"
     }
-     object TierMaker : NavRoute("tierMaker/{albumId}") {
-         const val ALBUM_ID_ARG = "albumId"
-         fun createRoute(albumId: String) = "tierMaker/$albumId"
-     }
+
+    data object TierAlbum : NavRoute("tierAlbum/{albumId}") {
+        const val ALBUM_ID_ARG = "albumId"
+        fun createRoute(albumId: String) = "tierAlbum/$albumId"
+    }
+
+    object TierMaker : NavRoute("tierMaker/{albumId}") {
+        const val ALBUM_ID_ARG = "albumId"
+        fun createRoute(albumId: String) = "tierMaker/$albumId"
+    }
 }
+
 sealed class BottomNavItem(
     val title: String,
     val icon: ImageVector,

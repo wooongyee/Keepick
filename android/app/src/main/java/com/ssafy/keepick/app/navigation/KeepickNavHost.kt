@@ -12,6 +12,7 @@ import com.ssafy.keepick.core.util.AppConstants
 import com.ssafy.keepick.feature.invite.InviteRoute
 import com.ssafy.keepick.feature.login.LoginRoute
 import com.ssafy.keepick.feature.main.MainScreen
+import com.ssafy.keepick.feature.tier.tieralbum.TierAlbumRoute
 import com.ssafy.keepick.feature.tier.tiermaker.TierMakerRoute
 
 
@@ -60,8 +61,8 @@ fun KeepickNavHost(
         composable(NavRoute.Main.route) {
             MainScreen(
                 onNavigateToLogin = { navController.navigate(NavRoute.Login.route) },
-                onNavigateToTierMaker = { albumId ->
-                    navController.navigate(NavRoute.TierMaker.createRoute(albumId))
+                onNavigateToTierAlbum = { albumId ->
+                    navController.navigate(NavRoute.TierAlbum.createRoute(albumId))
                 }
             )
         }
@@ -86,6 +87,19 @@ fun KeepickNavHost(
                 }
             )
         }
+
+        composable(route = NavRoute.TierAlbum.route) { backStackEntry ->
+            val albumId = backStackEntry.arguments?.getString(NavRoute.TierAlbum.ALBUM_ID_ARG)
+            TierAlbumRoute(
+                tierAlbumId = albumId ?: "unknown",
+                onNavigateBack = { navController.popBackStack() },
+                // 수정하기 버튼 클릭 시 TierMaker로 이동
+                onNavigateToEdit = { editAlbumId ->
+                    navController.navigate(NavRoute.TierMaker.createRoute(editAlbumId))
+                }
+            )
+        }
+
         composable(route = NavRoute.TierMaker.route) { backStackEntry ->
             val albumId = backStackEntry.arguments?.getString(NavRoute.TierMaker.ALBUM_ID_ARG)
             TierMakerRoute(
