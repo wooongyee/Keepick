@@ -45,7 +45,8 @@ fun KeepickNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = NavRoute.Main.route
+//            startDestination
     ) {
         composable(NavRoute.Login.route) {
             LoginRoute(
