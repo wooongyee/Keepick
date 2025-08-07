@@ -14,6 +14,7 @@ import com.ssafy.keepick.feature.login.LoginRoute
 import com.ssafy.keepick.feature.main.MainScreen
 import com.ssafy.keepick.feature.tier.tieralbum.TierAlbumRoute
 import com.ssafy.keepick.feature.tier.tiermaker.TierMakerRoute
+import com.ssafy.keepick.feature.timeline.TimelineAlbumRoute
 
 
 @Composable
@@ -63,6 +64,9 @@ fun KeepickNavHost(
                 onNavigateToLogin = { navController.navigate(NavRoute.Login.route) },
                 onNavigateToTierAlbum = { albumId ->
                     navController.navigate(NavRoute.TierAlbum.createRoute(albumId))
+                },
+                onNavigateToTimelineAlbum = {albumId ->
+                    navController.navigate(NavRoute.TimelineAlbum.createRoute(albumId))
                 }
             )
         }
@@ -107,6 +111,15 @@ fun KeepickNavHost(
                 onNavigateBack = { navController.popBackStack() }
             )
         }
+
+        composable(route = NavRoute.TimelineAlbum.route) { backStackEntry ->
+            val albumId = backStackEntry.arguments?.getString(NavRoute.TimelineAlbum.ALBUM_ID_ARG)
+            TimelineAlbumRoute(
+                timelineAlbumId = albumId ?: "unknown",
+                onNavigateBack = { navController.popBackStack() },
+            )
+        }
+
     }
 }
 

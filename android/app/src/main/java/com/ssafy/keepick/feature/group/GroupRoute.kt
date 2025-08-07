@@ -10,6 +10,7 @@ import com.ssafy.keepick.R
 @Composable
 fun GroupRoute(
     onNavigateToTierMaker : (albumId: String) -> Unit,
+    onNavigateToTimelineAlbum : (String) -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -52,11 +53,12 @@ fun GroupRoute(
     GroupScreen(
         groupName = groupName,
         members = displayMembers,
-        // --- 생성한 데이터 리스트들을 GroupScreen으로 전달 ---
         timelineAlbums = timelineAlbums,
         tierAlbums = tierAlbums,
         highlightAlbums = highlightAlbums,
-        onTimelineAlbumClick = { /*TODO*/ },
+        onTimelineAlbumClick = {
+            onNavigateToTimelineAlbum(it)
+        },
         onTierAlbumClick = {
             onNavigateToTierMaker(it)
         },

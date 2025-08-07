@@ -33,6 +33,10 @@ sealed class NavRoute(val route: String) {
         const val ALBUM_ID_ARG = "albumId"
         fun createRoute(albumId: String) = "tierMaker/$albumId"
     }
+    data object TimelineAlbum : NavRoute("timelineAlbum/{albumId}") {
+        const val ALBUM_ID_ARG = "albumId"
+        fun createRoute(albumId: String) = "timelineAlbum/$albumId"
+    }
 }
 
 sealed class BottomNavItem(
