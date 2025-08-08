@@ -40,6 +40,8 @@ fun GroupChatScreen() {
             onShowChatClick = viewModel::onShowChat,
             onShowSettings = viewModel::onShowSettings,
             onHideBottomSheet = viewModel::hideBottomSheet,
+            onParticipantClick = viewModel::onParticipantClick, // 추가
+            onClearFocus = viewModel::clearFocusedParticipant,
             onToggleScreenShare = viewModel::onToggleScreenShare
         )
     }

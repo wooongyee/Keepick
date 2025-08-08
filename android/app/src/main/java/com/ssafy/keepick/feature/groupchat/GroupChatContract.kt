@@ -27,9 +27,7 @@ data class GroupChatState(
     val size: GroupChatSize = GroupChatSize.HIDDEN,
     val participants: List<Participant> = emptyList(),
     val emojiEvents: Map<String, EmojiEvent> = emptyMap(),
-    /**
-     * [추가] 현재 표시 중인 바텀시트 콘텐츠 상태. NONE은 닫힌 상태를 의미합니다.
-     */
+    val focusedParticipantId: String? = null,
     val bottomSheetContent: BottomSheetContent = BottomSheetContent.NONE,
 ) {
     val screenSharingParticipant: Participant?

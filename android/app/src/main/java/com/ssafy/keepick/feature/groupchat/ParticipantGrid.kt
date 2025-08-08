@@ -1,7 +1,12 @@
 package com.ssafy.keepick.feature.groupchat
 
+import android.graphics.Rect
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,46 +26,29 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 
-
-/**
- * [수정 없음] 참가자 그리드 레이아웃의 메인 컴포저블
- * 화면 공유 여부에 따라 레이아웃을 분기하지 않고, 구조를 통합하여 중복을 제거.
- */
+private val SHARED_ELEMENT_BOUNDS_TRANSFORM_SPEC: AnimationSpec<Rect> = tween(durationMillis = 500)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ParticipantGrid(
     participants: List<Participant>,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (participantId: String, eventId: String) -> Unit,
+    onParticipantClick: (participantId: String) -> Unit,
 ) {
-    // --- 데이터 준비 ---
-    var screenSharingParticipant by remember { mutableStateOf(participants.find { it.isScreenSharing }) }
+    val screenSharingParticipant = participants.find { it.isScreenSharing }
     val isScreenSharing = screenSharingParticipant != null
     val gridParticipants = participants.filter { !it.isScreenSharing }
 
-    // --- 테스트용 로직 ---
-    LaunchedEffect(participants) {
-        delay(6000)
-        screenSharingParticipant = null // 6초 후 화면 공유 종료
-    }
-
-    // --- UI 구조 통합 ---
     Column(Modifier.fillMaxSize()) {
         if (screenSharingParticipant != null) {
-            ScreenShareView(participant = screenSharingParticipant!!)
+            ScreenShareView(participant = screenSharingParticipant)
         }
 
         val pageSize = if (isScreenSharing) 4 else 6
@@ -70,18 +58,20 @@ fun ParticipantGrid(
             pageSize = pageSize,
             emojiEvents = emojiEvents,
             onEmojiShown = onEmojiShown,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f),
+            onParticipantClick = onParticipantClick,
         )
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPagerGrid(
     gridParticipants: List<Participant>,
     pageSize: Int,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (participantId: String, eventId: String) -> Unit,
+    onParticipantClick: (participantId: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (gridParticipants.isEmpty()) {
@@ -102,40 +92,20 @@ private fun ParticipantPagerGrid(
             contentPadding = PaddingValues(horizontal = 8.dp)
         ) { pageIndex ->
             val pageParticipants = pages.getOrNull(pageIndex) ?: emptyList()
-
+            val commonParams = ParticipantLayoutParams(
+                participants = pageParticipants,
+                emojiEvents = emojiEvents,
+                onEmojiShown = onEmojiShown,
+                onParticipantClick = onParticipantClick,
+            )
             when (pageParticipants.size) {
-                1 -> ParticipantPageLayout_1(
-                    pageParticipants,
-                    emojiEvents,
-                    onEmojiShown,
-                )
-
-                2 -> ParticipantPageLayout_2(
-                    pageParticipants,
-                    emojiEvents,
-                    onEmojiShown,
-                )
-
-                3 -> ParticipantPageLayout_3(
-                    pageParticipants,
-                    emojiEvents,
-                    onEmojiShown,
-                )
-
-                4 -> ParticipantPageLayout_4(
-                    pageParticipants,
-                    emojiEvents,
-                    onEmojiShown,
-                ) // [신규] 4인 레이아웃 호출
+                1 -> ParticipantPageLayout_1(commonParams)
+                2 -> ParticipantPageLayout_2(commonParams)
+                3 -> ParticipantPageLayout_3(commonParams)
+                4 -> ParticipantPageLayout_4(commonParams)
                 else -> {
-                    // 5명 이상은 모두 일반 2열 그리드 레이아웃 사용
                     val maxRows = (pageSize + 1) / 2
-                    ParticipantPageLayout_Default(
-                        pageParticipants,
-                        maxRows,
-                        emojiEvents,
-                        onEmojiShown,
-                    )
+                    ParticipantPageLayout_Default(commonParams, maxRows)
                 }
             }
         }
@@ -150,36 +120,65 @@ private fun ParticipantPagerGrid(
     }
 }
 
+/**
+ * [신규] 반복적인 파라미터를 묶는 데이터 클래스
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
+private data class ParticipantLayoutParams(
+    val participants: List<Participant>,
+    val emojiEvents: Map<String, EmojiEvent>,
+    val onEmojiShown: (participantId: String, eventId: String) -> Unit,
+    val onParticipantClick: (participantId: String) -> Unit,
+)
 
+/**
+ * [신규] ParticipantCard와 공통 Modifier를 묶은 헬퍼 컴포저블
+ */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ParticipantPageLayout_1(
-    participants: List<Participant>,
-    emojiEvents: Map<String, EmojiEvent>,
-    onEmojiShown: (String, String) -> Unit,
+private fun GridParticipantItem(
+    participant: Participant,
+    emojiEvent: EmojiEvent?,
+    onEmojiShown: (eventId: String) -> Unit,
+    onParticipantClick: (participantId: String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    val p = participants.first()
+    with(LocalSharedTransitionScope.current) {
+        ParticipantCard(
+            participant = participant,
+            emojiEvent = emojiEvent,
+            onEmojiShown = onEmojiShown,
+            modifier = modifier
+                .clickable { onParticipantClick(participant.id) }
+        )
+    }
+}
 
-    Box(Modifier
-        .fillMaxSize()
-        .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+// [수정] 레이아웃 함수들이 ParticipantLayoutParams를 받도록 수정
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun ParticipantPageLayout_1(params: ParticipantLayoutParams) {
+    val p = params.participants.first()
+    Box(
+        Modifier
+            .fillMaxSize()
+            .padding(vertical = 8.dp), contentAlignment = Alignment.Center
+    ) {
         Row(Modifier.fillMaxHeight(0.5f)) {
-            ParticipantCard(
+            GridParticipantItem(
                 participant = p,
-                emojiEvent = emojiEvents[p.id],
-                onEmojiShown = { onEmojiShown(p.id, it) },
-                modifier = Modifier
-                    .aspectRatio(1f)
+                emojiEvent = params.emojiEvents[p.id],
+                onEmojiShown = { params.onEmojiShown(p.id, it) },
+                onParticipantClick = params.onParticipantClick,
+                modifier = Modifier.aspectRatio(1f)
             )
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ParticipantPageLayout_2(
-    participants: List<Participant>,
-    emojiEvents: Map<String, EmojiEvent>,
-    onEmojiShown: (String, String) -> Unit,
-) {
+private fun ParticipantPageLayout_2(params: ParticipantLayoutParams) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -187,11 +186,12 @@ private fun ParticipantPageLayout_2(
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        participants.forEach { p ->
-            ParticipantCard(
+        params.participants.forEach { p ->
+            GridParticipantItem(
                 participant = p,
-                emojiEvent = emojiEvents[p.id],
-                onEmojiShown = { onEmojiShown(p.id, it) },
+                emojiEvent = params.emojiEvents[p.id],
+                onEmojiShown = { params.onEmojiShown(p.id, it) },
+                onParticipantClick = params.onParticipantClick,
                 modifier = Modifier
                     .weight(1f, fill = false)
                     .aspectRatio(1f)
@@ -201,45 +201,40 @@ private fun ParticipantPageLayout_2(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ParticipantPageLayout_3(
-    participants: List<Participant>,
-    emojiEvents: Map<String, EmojiEvent>,
-    onEmojiShown: (String, String) -> Unit,
-) {
-    val topParticipant = participants.first()
-    val bottomParticipants = participants.drop(1)
-
+private fun ParticipantPageLayout_3(params: ParticipantLayoutParams) {
+    val topParticipant = params.participants.first()
+    val bottomParticipants = params.participants.drop(1)
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)
     ) {
-        // 상단 1명
         Row(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
             horizontalArrangement = Arrangement.Center
         ) {
-            val p = topParticipant
-            ParticipantCard(
-                participant = p,
-                emojiEvent = emojiEvents[p.id],
-                onEmojiShown = { onEmojiShown(p.id, it) },
+            GridParticipantItem(
+                participant = topParticipant,
+                emojiEvent = params.emojiEvents[topParticipant.id],
+                onEmojiShown = { params.onEmojiShown(topParticipant.id, it) },
+                onParticipantClick = params.onParticipantClick,
                 modifier = Modifier
                     .fillMaxHeight()
                     .aspectRatio(1f)
             )
         }
-        // 하단 2명
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             bottomParticipants.forEach { p ->
-                ParticipantCard(
+                GridParticipantItem(
                     participant = p,
-                    emojiEvent = emojiEvents[p.id],
-                    onEmojiShown = { onEmojiShown(p.id, it) },
+                    emojiEvent = params.emojiEvents[p.id],
+                    onEmojiShown = { params.onEmojiShown(p.id, it) },
+                    onParticipantClick = params.onParticipantClick,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
@@ -249,38 +244,37 @@ private fun ParticipantPageLayout_3(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ParticipantPageLayout_4(
-    participants: List<Participant>,
-    emojiEvents: Map<String, EmojiEvent>,
-    onEmojiShown: (String, String) -> Unit,
-) {
-    Box(
+private fun ParticipantPageLayout_4(params: ParticipantLayoutParams) {
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(8.dp),
-        contentAlignment = Alignment.Center // 그리드를 중앙에 배치
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth(1f)
-                .aspectRatio(1f),
+                .fillMaxWidth() // 너비를 채우고
+                .aspectRatio(1f), // 정사각형 비율을 유지
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            val rows = participants.chunked(2)
+            val rows = params.participants.chunked(2)
             rows.forEach { rowParticipants ->
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     rowParticipants.forEach { p ->
-                        ParticipantCard(
+                        GridParticipantItem(
                             participant = p,
-                            emojiEvent = emojiEvents[p.id],
-                            onEmojiShown = { onEmojiShown(p.id, it) },
+                            emojiEvent = params.emojiEvents[p.id],
+                            onEmojiShown = { params.onEmojiShown(p.id, it) },
+                            onParticipantClick = params.onParticipantClick,
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight()
+                                .fillMaxHeight(),
                         )
                     }
                 }
@@ -289,19 +283,10 @@ private fun ParticipantPageLayout_4(
     }
 }
 
-
-/**
- * [수정] 4명 이상의 참가자를 위한 일반 2열 그리드 레이아웃
- * 기존의 ParticipantPageLayout 역할을 수행한다.
- */
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-private fun ParticipantPageLayout_Default(
-    participants: List<Participant>,
-    maxRows: Int,
-    emojiEvents: Map<String, EmojiEvent>,
-    onEmojiShown: (String, String) -> Unit,
-) {
-    val rows = participants.chunked(2)
+private fun ParticipantPageLayout_Default(params: ParticipantLayoutParams, maxRows: Int) {
+    val rows = params.participants.chunked(2)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -314,10 +299,11 @@ private fun ParticipantPageLayout_Default(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 rowParticipants.forEach { p ->
-                    ParticipantCard(
+                    GridParticipantItem(
                         participant = p,
-                        emojiEvent = emojiEvents[p.id],
-                        onEmojiShown = { eventId -> onEmojiShown(p.id, eventId) },
+                        emojiEvent = params.emojiEvents[p.id],
+                        onEmojiShown = { params.onEmojiShown(p.id, it) },
+                        onParticipantClick = params.onParticipantClick,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
@@ -335,7 +321,7 @@ private fun ParticipantPageLayout_Default(
 }
 
 
-// --- 기존 유틸리티 및 Preview 코드 (변경 없음) ---
+// --- 유틸리티 및 Preview 코드 ---
 
 @Composable
 private fun ScreenShareView(participant: Participant) {
@@ -364,22 +350,17 @@ private fun HorizontalPagerIndicator(pagerState: PagerState, modifier: Modifier 
         val inactiveColor = Color.Gray.copy(alpha = 0.5f)
         repeat(pagerState.pageCount) { iteration ->
             val color = if (pagerState.currentPage == iteration) activeColor else inactiveColor
-            Box(modifier = Modifier
-                .size(8.dp)
-                .clip(CircleShape)
-                .background(color))
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(color)
+            )
         }
     }
 }
-
-private val dummyParticipants = listOf(
-    Participant(id = "user_me", name = "나", isMe = true),
-    Participant(id = "p1", name = "Pikachu"), Participant(id = "p2", name = "Squirtle"),
-    Participant(id = "p3", name = "Bulbasaur"), Participant(id = "p4", name = "Charmander"),
-    Participant(id = "p5", name = "Eevee"), Participant(id = "p6", name = "Snorlax"),
 )
 
-@Composable
 fun ParticipantCard(
     participant: Participant,
     emojiEvent: EmojiEvent?,

@@ -15,9 +15,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.ssafy.keepick.core.util.AppConstants
 import com.ssafy.keepick.feature.groupchat.GroupChatScreen
+import com.ssafy.keepick.feature.groupchat.GroupChatSideEffect
 import com.ssafy.keepick.feature.groupchat.GroupChatViewModel
 import com.ssafy.keepick.feature.groupchat.LocalGroupChatViewModel
-import com.ssafy.keepick.feature.groupchat.state.GroupChatSideEffect
 import com.ssafy.keepick.feature.invite.InviteRoute
 import com.ssafy.keepick.feature.login.LoginRoute
 import com.ssafy.keepick.feature.main.MainScreen

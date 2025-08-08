@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +42,7 @@ import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 val boundsTransform = BoundsTransform { _, _ ->
-    tween<Rect>(durationMillis = 500)
+    tween<Rect>(durationMillis = 300)
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -58,6 +59,8 @@ fun GroupChatOverlay(
     onShowChatClick: () -> Unit,
     onShowSettings: () -> Unit,
     onHideBottomSheet: () -> Unit,
+    onParticipantClick: (participantId: String) -> Unit,
+    onClearFocus: () -> Unit,
     onToggleScreenShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -74,8 +77,8 @@ fun GroupChatOverlay(
 
         val floatingDefaultOffset = remember(screenWidth, screenHeight) {
             IntOffset(
-                (screenWidth.value - floatingWidth.value - 16).roundToInt(),
-                (screenHeight.value * 0.6f).roundToInt()
+                x = (screenWidth - floatingWidth - 16.dp).value.roundToInt(),
+                y = (screenHeight - floatingHeight - 80.dp).value.roundToInt()
             )
         }
 
@@ -110,40 +113,52 @@ fun GroupChatOverlay(
 
                 }
             ) { targetSize ->
-                when (targetSize) {
-                    GroupChatSize.FULLSCREEN, GroupChatSize.FLOATING -> {
-                        ChatContainer(
-                            uiState = uiState,
-                            targetSize = targetSize,
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedContentScope = this,
-                            onMinimize = onMinimize,
-                            onExpand = onExpand,
-                            onInviteClick = onInvite,
-                            onHangupClick = onEndGroupChat,
-                            onEmojiShown = onEmojiShown,
-                            onToggleVideoClick = onToggleVideo,
-                            onToggleMicClick = onToggleMic,
-                            onShowChatClick = onShowChatClick,
-                            onShowSettings = onShowSettings,
-                            onHideBottomSheet = onHideBottomSheet,
-                            onToggleScreenShare = onToggleScreenShare,
-                            modifier = when (targetSize) {
-                                GroupChatSize.FULLSCREEN -> Modifier.fillMaxSize()
-                                GroupChatSize.FLOATING -> Modifier.size(floatingWidth, floatingHeight)
-                                else -> Modifier
-                            }
-                        )
+                CompositionLocalProvider(
+                    LocalSharedTransitionScope provides this@SharedTransitionLayout,
+                    LocalAnimatedContentScope provides this
+                ) {
+                    when (targetSize) {
+                        GroupChatSize.FULLSCREEN, GroupChatSize.FLOATING -> {
+                            ChatContainer(
+                                uiState = uiState,
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                animatedContentScope = this,
+                                onMinimize = onMinimize,
+                                onExpand = onExpand,
+                                onInviteClick = onInvite,
+                                onHangupClick = onEndGroupChat,
+                                onEmojiShown = onEmojiShown,
+                                onToggleVideoClick = onToggleVideo,
+                                onToggleMicClick = onToggleMic,
+                                onShowChatClick = onShowChatClick,
+                                onShowSettings = onShowSettings,
+                                onHideBottomSheet = onHideBottomSheet,
+                                onParticipantClick = onParticipantClick, // 추가
+                                onClearFocus = onClearFocus,
+                                onToggleScreenShare = onToggleScreenShare,
+                                modifier = when (targetSize) {
+                                    GroupChatSize.FULLSCREEN -> Modifier.fillMaxSize()
+                                    GroupChatSize.FLOATING -> Modifier.size(
+                                        floatingWidth,
+                                        floatingHeight
+                                    )
+
+                                    else -> Modifier
+                                }
+                            )
+                        }
+
+                        GroupChatSize.ICON -> {
+                            IconView(
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                animatedContentScope = this,
+                                onClick = onExpand,
+                                modifier = Modifier.size(iconSize)
+                            )
+                        }
+
+                        GroupChatSize.HIDDEN -> {}
                     }
-                    GroupChatSize.ICON -> {
-                        IconView(
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedContentScope = this,
-                            onClick = onExpand,
-                            modifier = Modifier.size(iconSize)
-                        )
-                    }
-                    GroupChatSize.HIDDEN -> {}
                 }
             }
         }

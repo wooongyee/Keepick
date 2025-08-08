@@ -47,7 +47,7 @@ import androidx.compose.ui.unit.sp
  * 컨트롤 패널과 확장형 바텀시트를 모두 포함하는 메인 컴포저블
  */
 @Composable
-fun GroupChatControlPanel(
+fun GroupChatControlSheet(
     modifier: Modifier = Modifier,
     uiState: GroupChatState,
     onHangupClick: () -> Unit,
@@ -101,11 +101,10 @@ fun GroupChatControlPanel(
                 )
             }
 
-            // 확장된 콘텐츠 영역
             AnimatedVisibility(
                 visible = isSheetExpanded,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
+                enter = fadeIn() + expandVertically(expandFrom = Alignment.Bottom),
+                exit = fadeOut() + shrinkVertically(shrinkTowards = Alignment.Bottom)
             ) {
                 Box(
                     modifier = Modifier

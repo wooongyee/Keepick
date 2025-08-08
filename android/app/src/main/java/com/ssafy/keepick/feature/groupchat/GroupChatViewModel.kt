@@ -182,8 +182,37 @@ class GroupChatViewModel @Inject constructor(
         }
         reduce { state.copy(size = nextSize) }
     }
+    /**
+     * [추가] 특정 참가자를 포커스하거나 포커스를 해제합니다.
+     */
+    fun onParticipantClick(participantId: String) = intent {
+        reduce {
+            if (state.focusedParticipantId == participantId) {
+                // 이미 포커스된 참가자를 다시 클릭하면 포커스 해제
+                state.copy(focusedParticipantId = null)
+            } else {
+                state.copy(focusedParticipantId = participantId)
+            }
+        }
+    }
 
+    /**
+     * [추가] 포커스된 참가자 뷰에서 뒤로가기 시 그리드 뷰로 돌아옵니다.
+     */
+    fun clearFocusedParticipant() = intent {
+        reduce {
+            state.copy(focusedParticipantId = null)
+        }
+    }
+
+    // [수정] 기존 뒤로가기 로직 수정
     fun handleBackPress() = intent {
+        // [추가] 참가자가 포커스된 상태라면 먼저 포커스를 해제합니다.
+        if (state.focusedParticipantId != null) {
+            clearFocusedParticipant()
+            return@intent
+        }
+
         if (state.size == GroupChatSize.FULLSCREEN) {
             reduce { state.copy(size = GroupChatSize.FLOATING) }
         }
