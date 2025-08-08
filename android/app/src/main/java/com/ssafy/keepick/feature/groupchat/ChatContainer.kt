@@ -92,8 +92,6 @@ fun ChatContainer(
                             participants = participants,
                             emojiEvents = uiState.emojiEvents,
                             onEmojiShown = onEmojiShown,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedContentScope = animatedContentScope
                         )
                     } else {
                         if (participants.isNotEmpty()) {
@@ -112,15 +110,6 @@ fun ChatContainer(
                                     .fillMaxSize()
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .then(
-                                        with(sharedTransitionScope) {
-                                            Modifier.sharedElement(
-                                                rememberSharedContentState(key = "main-video"),
-                                                animatedVisibilityScope = animatedContentScope,
-                                                boundsTransform = boundsTransform,
-                                            )
-                                        }
-                                    )
                             )
                         }
                     }

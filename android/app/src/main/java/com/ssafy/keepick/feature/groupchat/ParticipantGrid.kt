@@ -1,8 +1,5 @@
 package com.ssafy.keepick.feature.groupchat
 
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -43,14 +40,11 @@ import kotlinx.coroutines.delay
  * [수정 없음] 참가자 그리드 레이아웃의 메인 컴포저블
  * 화면 공유 여부에 따라 레이아웃을 분기하지 않고, 구조를 통합하여 중복을 제거.
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ParticipantGrid(
     participants: List<Participant>,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (participantId: String, eventId: String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedContentScope: AnimatedContentScope? = null,
 ) {
     // --- 데이터 준비 ---
     var screenSharingParticipant by remember { mutableStateOf(participants.find { it.isScreenSharing }) }
@@ -76,22 +70,18 @@ fun ParticipantGrid(
             pageSize = pageSize,
             emojiEvents = emojiEvents,
             onEmojiShown = onEmojiShown,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedContentScope = animatedContentScope,
             modifier = Modifier.weight(1f)
         )
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ParticipantPagerGrid(
     gridParticipants: List<Participant>,
     pageSize: Int,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (participantId: String, eventId: String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedContentScope: AnimatedContentScope?,
     modifier: Modifier = Modifier
 ) {
     if (gridParticipants.isEmpty()) {
@@ -118,32 +108,24 @@ private fun ParticipantPagerGrid(
                     pageParticipants,
                     emojiEvents,
                     onEmojiShown,
-                    sharedTransitionScope,
-                    animatedContentScope
                 )
 
                 2 -> ParticipantPageLayout_2(
                     pageParticipants,
                     emojiEvents,
                     onEmojiShown,
-                    sharedTransitionScope,
-                    animatedContentScope
                 )
 
                 3 -> ParticipantPageLayout_3(
                     pageParticipants,
                     emojiEvents,
                     onEmojiShown,
-                    sharedTransitionScope,
-                    animatedContentScope
                 )
 
                 4 -> ParticipantPageLayout_4(
                     pageParticipants,
                     emojiEvents,
                     onEmojiShown,
-                    sharedTransitionScope,
-                    animatedContentScope
                 ) // [신규] 4인 레이아웃 호출
                 else -> {
                     // 5명 이상은 모두 일반 2열 그리드 레이아웃 사용
@@ -153,8 +135,6 @@ private fun ParticipantPagerGrid(
                         maxRows,
                         emojiEvents,
                         onEmojiShown,
-                        sharedTransitionScope,
-                        animatedContentScope
                     )
                 }
             }
@@ -171,53 +151,34 @@ private fun ParticipantPagerGrid(
 }
 
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPageLayout_1(
     participants: List<Participant>,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (String, String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedContentScope: AnimatedContentScope?
 ) {
     val p = participants.first()
-    val sharedContentState = if (sharedTransitionScope != null) {
-        with(sharedTransitionScope) { rememberSharedContentState(key = "participant-${p.id}") }
-    } else null
 
     Box(Modifier
         .fillMaxSize()
         .padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
         Row(Modifier.fillMaxHeight(0.5f)) {
-            val videoModifier =
-                if (p.isMe && sharedContentState != null && sharedTransitionScope != null && animatedContentScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            sharedContentState,
-                            animatedContentScope
-                        )
-                    }
-                } else Modifier
             ParticipantCard(
                 participant = p,
                 emojiEvent = emojiEvents[p.id],
                 onEmojiShown = { onEmojiShown(p.id, it) },
                 modifier = Modifier
                     .aspectRatio(1f)
-                    .then(videoModifier)
             )
         }
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPageLayout_2(
     participants: List<Participant>,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (String, String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedContentScope: AnimatedContentScope?
 ) {
     Column(
         modifier = Modifier
@@ -227,19 +188,6 @@ private fun ParticipantPageLayout_2(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         participants.forEach { p ->
-            val sharedContentState = if (sharedTransitionScope != null) {
-                with(sharedTransitionScope) { rememberSharedContentState(key = "participant-${p.id}") }
-            } else null
-            val videoModifier =
-                if (p.isMe && sharedContentState != null && sharedTransitionScope != null && animatedContentScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            sharedContentState,
-                            animatedContentScope
-                        )
-                    }
-                } else Modifier
-
             ParticipantCard(
                 participant = p,
                 emojiEvent = emojiEvents[p.id],
@@ -248,20 +196,16 @@ private fun ParticipantPageLayout_2(
                     .weight(1f, fill = false)
                     .aspectRatio(1f)
                     .fillMaxWidth(0.6f)
-                    .then(videoModifier)
             )
         }
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPageLayout_3(
     participants: List<Participant>,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (String, String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedContentScope: AnimatedContentScope?
 ) {
     val topParticipant = participants.first()
     val bottomParticipants = participants.drop(1)
@@ -280,18 +224,6 @@ private fun ParticipantPageLayout_3(
             horizontalArrangement = Arrangement.Center
         ) {
             val p = topParticipant
-            val sharedContentState = if (sharedTransitionScope != null) {
-                with(sharedTransitionScope) { rememberSharedContentState(key = "participant-${p.id}") }
-            } else null
-            val videoModifier =
-                if (p.isMe && sharedContentState != null && sharedTransitionScope != null && animatedContentScope != null) {
-                    with(sharedTransitionScope) {
-                        Modifier.sharedElement(
-                            sharedContentState,
-                            animatedContentScope
-                        )
-                    }
-                } else Modifier
             ParticipantCard(
                 participant = p,
                 emojiEvent = emojiEvents[p.id],
@@ -299,24 +231,11 @@ private fun ParticipantPageLayout_3(
                 modifier = Modifier
                     .fillMaxHeight()
                     .aspectRatio(1f)
-                    .then(videoModifier)
             )
         }
         // 하단 2명
         Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             bottomParticipants.forEach { p ->
-                val sharedContentState = if (sharedTransitionScope != null) {
-                    with(sharedTransitionScope) { rememberSharedContentState(key = "participant-${p.id}") }
-                } else null
-                val videoModifier =
-                    if (p.isMe && sharedContentState != null && sharedTransitionScope != null && animatedContentScope != null) {
-                        with(sharedTransitionScope) {
-                            Modifier.sharedElement(
-                                sharedContentState,
-                                animatedContentScope
-                            )
-                        }
-                    } else Modifier
                 ParticipantCard(
                     participant = p,
                     emojiEvent = emojiEvents[p.id],
@@ -324,21 +243,17 @@ private fun ParticipantPageLayout_3(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .then(videoModifier)
                 )
             }
         }
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPageLayout_4(
     participants: List<Participant>,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (String, String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedContentScope: AnimatedContentScope?
 ) {
     Box(
         modifier = Modifier
@@ -347,7 +262,6 @@ private fun ParticipantPageLayout_4(
         contentAlignment = Alignment.Center // 그리드를 중앙에 배치
     ) {
         Column(
-            // 그리드 컨테이너의 크기를 제한하여 중앙 정렬 효과를 줌
             modifier = Modifier
                 .fillMaxWidth(1f)
                 .aspectRatio(1f),
@@ -360,19 +274,6 @@ private fun ParticipantPageLayout_4(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     rowParticipants.forEach { p ->
-                        val sharedContentState = if (sharedTransitionScope != null) {
-                            with(sharedTransitionScope) { rememberSharedContentState(key = "participant-${p.id}") }
-                        } else null
-                        val videoModifier =
-                            if (p.isMe && sharedContentState != null && sharedTransitionScope != null && animatedContentScope != null) {
-                                with(sharedTransitionScope) {
-                                    Modifier.sharedElement(
-                                        sharedContentState,
-                                        animatedContentScope
-                                    )
-                                }
-                            } else Modifier
-
                         ParticipantCard(
                             participant = p,
                             emojiEvent = emojiEvents[p.id],
@@ -380,7 +281,6 @@ private fun ParticipantPageLayout_4(
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .then(videoModifier)
                         )
                     }
                 }
@@ -394,15 +294,12 @@ private fun ParticipantPageLayout_4(
  * [수정] 4명 이상의 참가자를 위한 일반 2열 그리드 레이아웃
  * 기존의 ParticipantPageLayout 역할을 수행한다.
  */
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPageLayout_Default(
     participants: List<Participant>,
     maxRows: Int,
     emojiEvents: Map<String, EmojiEvent>,
     onEmojiShown: (String, String) -> Unit,
-    sharedTransitionScope: SharedTransitionScope?,
-    animatedContentScope: AnimatedContentScope?
 ) {
     val rows = participants.chunked(2)
     Column(
@@ -417,18 +314,6 @@ private fun ParticipantPageLayout_Default(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 rowParticipants.forEach { p ->
-                    val sharedContentState = if (sharedTransitionScope != null) {
-                        with(sharedTransitionScope) { rememberSharedContentState(key = "participant-${p.id}") }
-                    } else null
-                    val videoModifier =
-                        if (p.isMe && sharedContentState != null && sharedTransitionScope != null && animatedContentScope != null) {
-                            with(sharedTransitionScope) {
-                                Modifier.sharedElement(
-                                    sharedContentState,
-                                    animatedContentScope
-                                )
-                            }
-                        } else Modifier
                     ParticipantCard(
                         participant = p,
                         emojiEvent = emojiEvents[p.id],
@@ -436,7 +321,6 @@ private fun ParticipantPageLayout_Default(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .then(videoModifier)
                     )
                 }
                 if (rowParticipants.size == 1) {
@@ -510,7 +394,6 @@ fun ParticipantCard(
     }
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF1C1C1E,
@@ -526,7 +409,6 @@ private fun Preview_NoShare_1() {
         onEmojiShown = { _, _ -> })
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF1C1C1E,
@@ -542,7 +424,6 @@ private fun Preview_NoShare_2() {
         onEmojiShown = { _, _ -> })
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF1C1C1E,
@@ -558,7 +439,6 @@ private fun Preview_NoShare_3() {
         onEmojiShown = { _, _ -> })
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF1C1C1E,
@@ -574,7 +454,6 @@ private fun Preview_NoShare_4() {
         onEmojiShown = { _, _ -> })
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF1C1C1E,
@@ -592,7 +471,6 @@ private fun Preview_Share_3() {
         onEmojiShown = { _, _ -> })
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Preview(
     showBackground = true,
     backgroundColor = 0xFF1C1C1E,
