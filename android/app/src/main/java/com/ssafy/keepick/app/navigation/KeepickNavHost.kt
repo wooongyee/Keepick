@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
@@ -17,9 +15,9 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navDeepLink
 import com.ssafy.keepick.core.util.AppConstants
 import com.ssafy.keepick.feature.groupchat.GroupChatScreen
-import com.ssafy.keepick.feature.groupchat.GroupChatSideEffect
 import com.ssafy.keepick.feature.groupchat.GroupChatViewModel
 import com.ssafy.keepick.feature.groupchat.LocalGroupChatViewModel
+import com.ssafy.keepick.feature.groupchat.state.GroupChatSideEffect
 import com.ssafy.keepick.feature.invite.InviteRoute
 import com.ssafy.keepick.feature.login.LoginRoute
 import com.ssafy.keepick.feature.main.MainScreen
@@ -35,7 +33,6 @@ fun KeepickNavHost(
 ) {
     val navController = rememberNavController()
     val groupChatViewModel: GroupChatViewModel = hiltViewModel()
-    val groupChatState by groupChatViewModel.container.stateFlow.collectAsState()
 
     val startDestination = if (isLoggedIn) NavRoute.Main.route else NavRoute.Login.route
 
@@ -145,9 +142,7 @@ fun KeepickNavHost(
                 }
 
             }
-            GroupChatScreen(
-                uiState = groupChatState
-            )
+            GroupChatScreen()
         }
     }
 }
