@@ -37,8 +37,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import com.ssafy.keepick.feature.groupchat.state.GroupChatSize
-import com.ssafy.keepick.feature.groupchat.state.GroupChatState
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -55,6 +53,12 @@ fun GroupChatOverlay(
     onEndGroupChat: () -> Unit,
     onInvite: () -> Unit,
     onEmojiShown: (participantId: String, eventId: String) -> Unit,
+    onToggleVideo: () -> Unit,
+    onToggleMic: () -> Unit,
+    onShowChatClick: () -> Unit,
+    onShowSettings: () -> Unit,
+    onHideBottomSheet: () -> Unit,
+    onToggleScreenShare: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
 
@@ -103,7 +107,7 @@ fun GroupChatOverlay(
                 transitionSpec = {
                     fadeIn(animationSpec = tween(durationMillis = 300)) + scaleIn(animationSpec = tween(300)) togetherWith
                         fadeOut(animationSpec = tween(durationMillis = 300)) + scaleOut(animationSpec = tween(300))
-                   
+
                 }
             ) { targetSize ->
                 when (targetSize) {
@@ -118,6 +122,12 @@ fun GroupChatOverlay(
                             onInviteClick = onInvite,
                             onHangupClick = onEndGroupChat,
                             onEmojiShown = onEmojiShown,
+                            onToggleVideoClick = onToggleVideo,
+                            onToggleMicClick = onToggleMic,
+                            onShowChatClick = onShowChatClick,
+                            onShowSettings = onShowSettings,
+                            onHideBottomSheet = onHideBottomSheet,
+                            onToggleScreenShare = onToggleScreenShare,
                             modifier = when (targetSize) {
                                 GroupChatSize.FULLSCREEN -> Modifier.fillMaxSize()
                                 GroupChatSize.FLOATING -> Modifier.size(floatingWidth, floatingHeight)

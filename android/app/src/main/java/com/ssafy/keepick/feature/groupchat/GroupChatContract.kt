@@ -1,8 +1,7 @@
-package com.ssafy.keepick.feature.groupchat.state
+package com.ssafy.keepick.feature.groupchat
 
 import java.util.UUID
 
-// 데이터 모델 (이전과 동일)
 data class Participant(
     val id: String = UUID.randomUUID().toString(),
     val name: String,
@@ -18,21 +17,26 @@ enum class GroupChatSize {
     FULLSCREEN, FLOATING, ICON, HIDDEN
 }
 
-// 1. Orbit MVI를 위한 State 정의
-// 이전 GroupChatUiState의 모든 필드를 포함합니다.
+enum class BottomSheetContent {
+    NONE, CHAT, SETTINGS
+}
+
 data class GroupChatState(
     val isActive: Boolean = false,
     val groupId: String? = null,
     val size: GroupChatSize = GroupChatSize.HIDDEN,
     val participants: List<Participant> = emptyList(),
     val emojiEvents: Map<String, EmojiEvent> = emptyMap(),
+    /**
+     * [추가] 현재 표시 중인 바텀시트 콘텐츠 상태. NONE은 닫힌 상태를 의미합니다.
+     */
+    val bottomSheetContent: BottomSheetContent = BottomSheetContent.NONE,
 ) {
     val screenSharingParticipant: Participant?
         get() = participants.find { it.isScreenSharing }
 }
 
-// 2. Orbit MVI를 위한 SideEffect 정의
+
 sealed class GroupChatSideEffect {
     data class ShowToast(val message: String) : GroupChatSideEffect()
-    // 필요시 data class NavigateToInvite(...) : GroupChatSideEffect() 등 추가 가능
 }

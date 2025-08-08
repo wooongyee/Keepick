@@ -22,8 +22,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.ssafy.keepick.feature.groupchat.state.EmojiEvent
-import com.ssafy.keepick.feature.groupchat.state.Participant
 import kotlinx.coroutines.delay
 
 @Composable
@@ -73,7 +71,6 @@ fun ParticipantCard(
                 )
             }
 
-            // Box 스코프에서는 ColumnScope가 없는 범용 AnimatedVisibility가 사용되어야 합니다.
             Column(
                 modifier = Modifier.fillMaxSize().align(Alignment.Center),
             ){

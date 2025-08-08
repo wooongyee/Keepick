@@ -20,11 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.ssafy.keepick.feature.groupchat.state.GroupChatSize
-import com.ssafy.keepick.feature.groupchat.state.GroupChatState
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
+@OptIn(ExperimentalSharedTransitionApi::class)
 fun ChatContainer(
     uiState: GroupChatState,
     targetSize: GroupChatSize,
@@ -34,11 +32,14 @@ fun ChatContainer(
     onMinimize: () -> Unit,
     onExpand: () -> Unit,
     onInviteClick: () -> Unit,
-    onHangupClick: () -> Unit = {},
-    onToggleVideoClick: () -> Unit= {},
-    onToggleMicClick: () -> Unit= {},
-    onShowChatClick: () -> Unit= {},
+    onHangupClick: () -> Unit,
+    onToggleVideoClick: () -> Unit,
+    onToggleMicClick: () -> Unit,
+    onShowChatClick: () -> Unit,
     onEmojiShown: (participantId: String, eventId: String) -> Unit,
+    onShowSettings: () -> Unit,
+    onHideBottomSheet: () -> Unit,
+    onToggleScreenShare: () -> Unit,
 ) {
     val participants = uiState.participants
     val isFullScreen = uiState.size == GroupChatSize.FULLSCREEN
@@ -50,13 +51,11 @@ fun ChatContainer(
         label = "cornerRadiusAnimation"
     )
 
-    // [수정] 최상위 Box에서는 sharedBounds를 제거하고 clip과 background만 남깁니다.
-    // 애니메이션은 내부 요소들이 각각 담당합니다.
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(animatedCornerRadius))
             .then(
-                with (sharedTransitionScope){
+                with(sharedTransitionScope) {
                     Modifier.sharedBounds(
                         rememberSharedContentState(key = "container-bounds"),
                         animatedVisibilityScope = animatedContentScope,
@@ -66,84 +65,102 @@ fun ChatContainer(
             )
             .background(Color(0xFF1C1C1E))
     ) {
-        Column(Modifier.fillMaxSize()) {
-            val headerPadding = if (isFullScreen) {
-                WindowInsets.systemBars.asPaddingValues()
-            } else {
-                WindowInsets(0, 0, 0, 0).asPaddingValues()
-            }
+        with(sharedTransitionScope) {
+            Column(Modifier.fillMaxSize()) {
+                val headerPadding = if (isFullScreen) {
+                    WindowInsets.systemBars.asPaddingValues()
+                } else {
+                    WindowInsets(0, 0, 0, 0).asPaddingValues()
+                }
 
-            // 헤더
-            if (isFullScreen) {
-                FullscreenHeader(
-                    onBackClick = onMinimize,
-                    onInviteClick = onInviteClick,
-                    modifier = Modifier.padding(headerPadding)
-                )
-            } else {
-                FloatingHeader(
-                    onMaximizeClick = onExpand,
-                    onIconifyClick = onMinimize
-                )
-            }
-
-
-            // 메인 콘텐츠
-            Box(modifier = Modifier.weight(1f)) {
                 if (isFullScreen) {
-                    ParticipantGrid(
-                        participants = participants,
-                        emojiEvents = uiState.emojiEvents,
-                        onEmojiShown = onEmojiShown,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedContentScope = animatedContentScope
+                    FullscreenHeader(
+                        onBackClick = onMinimize,
+                        onInviteClick = onInviteClick,
+                        modifier = Modifier.padding(headerPadding)
                     )
                 } else {
-                    if (participants.isNotEmpty()) {
-                        // [수정] 플로팅 모드의 카드에 sharedElement를 직접 적용합니다.
-                        // "나"의 영상이 없다면 첫번째 참가자의 영상을 메인으로 사용합니다.
-                        val mainParticipant = myParticipantState ?: participants.first()
-                        ParticipantCard(
-                            participant = mainParticipant,
-                            isFloating = true,
-                            emojiEvent = uiState.emojiEvents[mainParticipant.id],
-                            onEmojiShown = { eventId -> onEmojiShown(mainParticipant.id, eventId) },
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .then(
-                                    with(sharedTransitionScope) {
-                                        Modifier.sharedElement(
-                                            rememberSharedContentState(key = "main-video"),
-                                            animatedVisibilityScope = animatedContentScope,
-                                            boundsTransform = boundsTransform,
-                                        )
-                                    }
-                                )
+                    FloatingHeader(
+                        onMaximizeClick = onExpand,
+                        onIconifyClick = onMinimize
+                    )
+                }
+
+                Box(modifier = Modifier.weight(1f)) {
+                    if (isFullScreen) {
+                        ParticipantGrid(
+                            participants = participants,
+                            emojiEvents = uiState.emojiEvents,
+                            onEmojiShown = onEmojiShown,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedContentScope = animatedContentScope
                         )
+                    } else {
+                        if (participants.isNotEmpty()) {
+                            val mainParticipant = myParticipantState ?: participants.first()
+                            ParticipantCard(
+                                participant = mainParticipant,
+                                isFloating = true,
+                                emojiEvent = uiState.emojiEvents[mainParticipant.id],
+                                onEmojiShown = { eventId ->
+                                    onEmojiShown(
+                                        mainParticipant.id,
+                                        eventId
+                                    )
+                                },
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .then(
+                                        with(sharedTransitionScope) {
+                                            Modifier.sharedElement(
+                                                rememberSharedContentState(key = "main-video"),
+                                                animatedVisibilityScope = animatedContentScope,
+                                                boundsTransform = boundsTransform,
+                                            )
+                                        }
+                                    )
+                            )
+                        }
                     }
                 }
-            }
 
-            // [수정] 컨트롤 바를 with(scope)로 감싸고 sharedElement를 적용합니다.
-            with(sharedTransitionScope) {
-                ChatControls(
-                    isFullScreen = isFullScreen,
-                    myParticipantState = myParticipantState,
-                    onHangupClick = onHangupClick,
-                    onToggleVideoClick = onToggleVideoClick,
-                    onToggleMicClick = onToggleMicClick,
-                    onShowChatClick = onShowChatClick,
-                    modifier = Modifier
-                        .padding(bottom = if (isFullScreen) 16.dp else 8.dp)
-                        .padding(horizontal = if (isFullScreen) 16.dp else 8.dp)
-                        .sharedElement(
+                if (isFullScreen) {
+                    GroupChatControlPanel(
+                        uiState = uiState,
+                        onHangupClick = onHangupClick,
+                        onToggleVideoClick = onToggleVideoClick,
+                        onToggleMicClick = onToggleMicClick,
+                        onShowChatClick = onShowChatClick,
+                        onShowSettings = onShowSettings,
+                        onHideBottomSheet = onHideBottomSheet,
+                        onToggleScreenShare = onToggleScreenShare,
+                        modifier = Modifier.sharedElement(
                             rememberSharedContentState(key = "controls"),
                             animatedVisibilityScope = animatedContentScope,
                             boundsTransform = boundsTransform,
                         )
-                )
+                    )
+                } else {
+                    // 플로팅 모드에서는 기존의 간단한 ChatControls를 사용
+                    ChatControls(
+                        isFullScreen = false,
+                        myParticipantState = myParticipantState,
+                        onHangupClick = onHangupClick,
+                        onToggleVideoClick = onToggleVideoClick,
+                        onToggleMicClick = onToggleMicClick,
+                        onShowChatClick = {}, // 플로팅에서는 채팅 버튼 없음
+                        modifier = Modifier
+                            .padding(bottom = 8.dp)
+                            .padding(horizontal = 8.dp)
+                            .sharedElement(
+                                rememberSharedContentState(key = "controls"),
+                                animatedVisibilityScope = animatedContentScope,
+                                boundsTransform = boundsTransform,
+                            )
+                    )
+                }
             }
         }
     }

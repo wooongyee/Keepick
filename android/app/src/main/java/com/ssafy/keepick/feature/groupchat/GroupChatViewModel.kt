@@ -2,11 +2,6 @@ package com.ssafy.keepick.feature.groupchat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.ssafy.keepick.feature.groupchat.state.EmojiEvent
-import com.ssafy.keepick.feature.groupchat.state.GroupChatSideEffect
-import com.ssafy.keepick.feature.groupchat.state.GroupChatSize
-import com.ssafy.keepick.feature.groupchat.state.GroupChatState
-import com.ssafy.keepick.feature.groupchat.state.Participant
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -15,15 +10,15 @@ import org.orbitmvi.orbit.container
 import javax.inject.Inject
 
 @HiltViewModel
-class GroupChatViewModel @Inject constructor() :
-    ViewModel(), ContainerHost<GroupChatState, GroupChatSideEffect> {
+class GroupChatViewModel @Inject constructor(
 
-    // Orbit 컨테이너 설정
-    override val container =viewModelScope.container<GroupChatState, GroupChatSideEffect>(GroupChatState())
+) : ViewModel(), ContainerHost<GroupChatState, GroupChatSideEffect> {
+
+    override val container =
+        viewModelScope.container<GroupChatState, GroupChatSideEffect>(GroupChatState())
 
     fun startGroupChat(groupId: String) = intent {
         if (state.isActive && state.groupId == groupId) {
-            // 이미 같은 채팅방에 참여 중이면 아무것도 하지 않음
             return@intent
         }
         if (state.isActive) {
@@ -31,7 +26,7 @@ class GroupChatViewModel @Inject constructor() :
             return@intent
         }
 
-        // 실제 앱에서는 이 groupId를 사용해 서버로부터 참가자 목록 등을 가져옵니다.
+        // 더미 데이터
         val initialParticipants = listOf(
             Participant(id = "user_me", name = "나", isMe = true),
             Participant(name = "Jaewoong", isScreenSharing = true),
@@ -39,12 +34,13 @@ class GroupChatViewModel @Inject constructor() :
             Participant(id = "tt", name = "tt"),
             Participant(name = "t2", isScreenSharing = true),
             Participant(name = "t3"),
+            Participant(name = "t5"),
         )
 
         reduce {
             state.copy(
                 isActive = true,
-                groupId = groupId, // <<< 전달받은 groupId를 상태에 저장
+                groupId = groupId,
                 size = GroupChatSize.FULLSCREEN,
                 participants = initialParticipants
             )
@@ -52,7 +48,11 @@ class GroupChatViewModel @Inject constructor() :
 
         // 시뮬레이션 로직은 채팅이 시작된 후에 실행되도록 이 안으로 이동
         viewModelScope.launch {
-            delay(5000)
+            delay(2000)
+            addNewParticipant()
+            delay(2000)
+            addNewParticipant()
+            delay(2000)
             addNewParticipant()
         }
         viewModelScope.launch {
@@ -91,11 +91,63 @@ class GroupChatViewModel @Inject constructor() :
         }
     }
 
+
     /**
-     * [추가] 채팅 UI를 보여주기 위한 이벤트. (현재는 Toast 메시지로 대체)
+     * [수정] 채팅 UI 바텀시트를 토글합니다.
      */
     fun onShowChat() = intent {
-        postSideEffect(GroupChatSideEffect.ShowToast("채팅 기능은 준비 중입니다."))
+        reduce {
+            if (state.bottomSheetContent == BottomSheetContent.CHAT) {
+                // 이미 채팅창이 열려있으면 닫습니다.
+                state.copy(bottomSheetContent = BottomSheetContent.NONE)
+            } else {
+                // 다른 창이 열려있거나 닫혀있으면 채팅창을 엽니다.
+                state.copy(bottomSheetContent = BottomSheetContent.CHAT)
+            }
+        }
+    }
+
+    /**
+     * [추가] 설정 UI 바텀시트를 엽니다. (핸들 드래그를 통해 호출)
+     */
+    fun onShowSettings() = intent {
+        reduce {
+            if (state.bottomSheetContent != BottomSheetContent.SETTINGS) {
+                state.copy(bottomSheetContent = BottomSheetContent.SETTINGS)
+            } else {
+                state.copy(bottomSheetContent = BottomSheetContent.NONE)
+            }
+        }
+    }
+
+    /**
+     * [추가] 바텀시트를 닫습니다.
+     */
+    fun hideBottomSheet() = intent {
+        reduce {
+            state.copy(bottomSheetContent = BottomSheetContent.NONE)
+        }
+    }
+
+    /**
+     * [추가] 화면 공유 시작/종료 토글 (설정 UI용)
+     */
+    fun onToggleScreenShare() = intent {
+        val me = state.participants.find { it.isMe } ?: return@intent
+        val isSomeoneElseSharing = state.screenSharingParticipant != null && !me.isScreenSharing
+
+        if (isSomeoneElseSharing) {
+            postSideEffect(GroupChatSideEffect.ShowToast("다른 참여자가 화면을 공유하고 있습니다."))
+            return@intent
+        }
+
+        reduce {
+            state.copy(
+                participants = state.participants.map {
+                    if (it.isMe) it.copy(isScreenSharing = !it.isScreenSharing) else it
+                }
+            )
+        }
     }
 
     private fun triggerEmoji(participantId: String, emoji: String) = intent {
