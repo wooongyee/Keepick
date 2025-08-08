@@ -38,6 +38,7 @@ import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
 import com.ssafy.keepick.feature.group.components.GroupTopBar
 import com.ssafy.keepick.feature.group.createGroup.CreateGroupBottomSheet
 import com.ssafy.keepick.feature.group.createGroup.CreateGroupStep
+import com.ssafy.keepick.feature.groupchat.LocalGroupChatViewModel
 import com.ssafy.keepick.feature.home.HomeRoute
 import com.ssafy.keepick.feature.home.components.HomeTopBar
 import com.ssafy.keepick.feature.mypage.MyPageRoute
@@ -52,6 +53,9 @@ fun MainScreen(
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
+
+    val groupChatViewModel = LocalGroupChatViewModel.current
+    val currentGroupId = "team-yeol-woo-gam-id" // 실제 그룹 ID
 
     var isMenuExpanded by remember { mutableStateOf(false) }
     var currentGroupName by remember { mutableStateOf("키픽 공식 그룹") }
@@ -88,7 +92,9 @@ fun MainScreen(
                             createGroupStep = CreateGroupStep.INPUT_INFO
                             showCreateGroupSheet = true
                         },
-                        onVideoClick = { /* TODO: 영상통화 */ }
+                        onVideoClick = {
+                            groupChatViewModel.startGroupChat(currentGroupId)
+                        }
                     )
                 }
                 BottomNavItem.MyPage.route -> {
