@@ -41,7 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
-import com.ssafy.keepick.core.ui.rememberGalleryLauncher
+import com.ssafy.keepick.core.ui.rememberSinglePhotoPicker
 import com.ssafy.keepick.feature.mypage.DisplayProfileSummary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +56,7 @@ fun EditProfileBottomSheet(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     // --- [핵심] 권한 처리 로직이 포함된 갤러리 런처 생성 ---
-    val galleryLauncher = rememberGalleryLauncher { uri ->
+    val galleryLauncher = rememberSinglePhotoPicker { uri ->
         selectedImageUri = uri
     }
     val sheetState = rememberModalBottomSheetState(

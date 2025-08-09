@@ -96,7 +96,7 @@ fun openAppSettings(context: Context) {
  */
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun rememberGalleryLauncher(onImageSelected: (Uri?) -> Unit): () -> Unit {
+fun rememberSinglePhotoPicker(onImageSelected: (Uri?) -> Unit): () -> Unit {
     val context = LocalContext.current
     var showPermissionDialog by remember { mutableStateOf(false) }
 
@@ -135,3 +135,52 @@ fun rememberGalleryLauncher(onImageSelected: (Uri?) -> Unit): () -> Unit {
     }
 }
 
+
+/**
+ * [새로 추가] 여러 이미지 선택을 위한 Photo Picker 런처.
+ *
+ * @param onImagesSelected 선택된 이미지들의 URI 리스트를 반환하는 콜백.
+ * @return 갤러리를 실행하는 람다 함수 `() -> Unit`.
+ */
+@OptIn(ExperimentalPermissionsApi::class)
+@Composable
+fun rememberMultiplePhotoPicker(onImagesSelected: (List<Uri>) -> Unit): () -> Unit {
+    val context = LocalContext.current
+    var showPermissionDialog by remember { mutableStateOf(false) }
+
+    val permissionState = rememberPermissionState(permission = storagePermission)
+
+    // 여러 이미지를 선택하는 PickMultipleVisualMedia 계약 사용
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(30),
+        onResult = onImagesSelected
+    )
+
+    if (showPermissionDialog) {
+        PermissionRationaleDialog(
+            onConfirm = {
+                openAppSettings(context)
+                showPermissionDialog = false
+            },
+            onDismiss = { showPermissionDialog = false }
+        )
+    }
+
+    return {
+        when {
+            // 권한이 이미 허용된 경우
+            permissionState.status.isGranted -> {
+                galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+            }
+            // 권한이 거부되었지만, 시스템 권한 요청 창을 다시 띄울 수 있는 경우
+            permissionState.status.shouldShowRationale -> {
+                permissionState.launchPermissionRequest()
+            }
+            // 권한이 영구적으로 거부된 경우 (다이얼로그 표시)
+            else -> {
+                // 첫 권한 요청 시 shouldShowRationale이 false일 수 있으므로, 먼저 요청부터 시도
+                permissionState.launchPermissionRequest()
+            }
+        }
+    }
+}

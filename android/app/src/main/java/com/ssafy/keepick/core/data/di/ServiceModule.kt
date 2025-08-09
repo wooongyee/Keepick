@@ -1,5 +1,6 @@
 package com.ssafy.keepick.core.data.di
 
+import com.ssafy.keepick.core.data.photo.PhotoService
 import com.ssafy.keepick.core.data.service.AuthService
 import dagger.Module
 import dagger.Provides
@@ -19,4 +20,9 @@ object ServiceModule {
         @Named("default") retrofit: Retrofit
     ): AuthService = retrofit.create(AuthService::class.java)
 
+    @Provides
+    @Singleton
+    fun providePhotoService(
+        @Named("default") retrofit: Retrofit
+    ): PhotoService = retrofit.create(PhotoService::class.java)
 }

@@ -38,7 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.ssafy.keepick.core.ui.rememberGalleryLauncher
+import com.ssafy.keepick.core.ui.rememberSinglePhotoPicker
 
 
 @Composable
@@ -47,7 +47,7 @@ internal fun InputInfoStep() {
     var groupDescription by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    val galleryLauncher = rememberGalleryLauncher { uri ->
+    val galleryLauncher = rememberSinglePhotoPicker { uri ->
         selectedImageUri = uri
     }
 

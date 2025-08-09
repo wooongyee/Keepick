@@ -24,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -32,7 +33,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ssafy.keepick.app.navigation.BottomNavItem
 import com.ssafy.keepick.core.ui.RequestStoragePermissionOnStart
-import com.ssafy.keepick.feature.gallery.GalleryScreen
+import com.ssafy.keepick.core.ui.rememberMultiplePhotoPicker
+import com.ssafy.keepick.feature.gallery.GalleryRoute
+import com.ssafy.keepick.feature.gallery.GalleryViewModel
 import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
 import com.ssafy.keepick.feature.group.components.GroupTopBar
@@ -62,6 +65,19 @@ fun MainScreen(
     val groups = listOf("키픽 공식 그룹", "SSAFY 13기 D207", "가족방", "스터디 그룹")
 
     var showCreateGroupSheet by remember { mutableStateOf(false) }
+    var showPhotoPickerSheet by remember { mutableStateOf(false) }
+
+    val galleryViewModel: GalleryViewModel = hiltViewModel()
+
+    // 새로운 Photo Picker 런처
+    val multiplePhotoPickerLauncher = rememberMultiplePhotoPicker { uris ->
+        // 이미지가 선택되면 ViewModel에 URI 목록 전달
+        if (uris.isNotEmpty()) {
+            galleryViewModel.addImagesToGallery(uris)
+        }
+    }
+
+
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden }
@@ -101,6 +117,15 @@ fun MainScreen(
                     MypageTopBar(
                         onLogoutClick = onNavigateToLogin, // 로그아웃 콜백 연결
                         onSettingsClick = { /* TODO: 설정 화면 이동 */ }
+                    )
+                }
+                BottomNavItem.Gallery.route -> {
+                    GroupTopBar(
+                        groupName = currentGroupName,
+                        onBackClick = {},
+                        onGroupSelectClick = { isMenuExpanded = !isMenuExpanded },
+                        onAddClick = { showPhotoPickerSheet = true }, // '+' 버튼 클릭 시 BottomSheet 표시
+                        onVideoClick = { /* 갤러리에서는 영상통화 버튼 비활성화 또는 다른 기능 */ }
                     )
                 }
             }
@@ -157,7 +182,21 @@ fun MainScreen(
                         onNavigateToTimelineAlbum = onNavigateToTimelineAlbum
                     )
                 }
-                composable(route = BottomNavItem.Gallery.route) { GalleryScreen() }
+                composable(route = BottomNavItem.Gallery.route) {
+                    GalleryRoute(
+                        viewModel = galleryViewModel,
+                        onNavigateToCreateAlbum = { selectedIds ->
+                            // TODO: 앨범 만들기 화면으로 이동
+                            println("앨범 만들기 화면으로 이동: $selectedIds")
+                        },
+                        onNavigateToImageDetail = { imageId ->
+                            // TODO: 이미지 상세 보기 화면으로 이동
+                            println("이미지 상세 보기: $imageId")
+                        },
+                        // 비어 있는 갤러리 화면에서 업로드 버튼을 눌렀을 때도 Photo Picker 실행
+                        onUploadRequest = { multiplePhotoPickerLauncher() }
+                    )
+                }
                 composable(route = BottomNavItem.MyPage.route) {
                     MyPageRoute(
                         onNavigateToLogin = onNavigateToLogin,
