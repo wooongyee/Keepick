@@ -1,7 +1,7 @@
 package com.ssafy.keepick.core.data.di
 
 import com.ssafy.keepick.core.data.photo.PhotoRepositoryImpl
-import com.ssafy.keepick.core.data.repository.AuthRepositoryImpl
+import com.ssafy.keepick.core.data.auth.AuthRepositoryImpl
 import com.ssafy.keepick.core.domain.AuthRepository
 import com.ssafy.keepick.core.domain.photo.PhotoRepository
 import dagger.Binds

@@ -65,8 +65,9 @@ fun KeepickNavHost(
         Box(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
-                startDestination = NavRoute.Main.route
-        //            startDestination
+                startDestination =
+//                    NavRoute.Main.route
+                    startDestination
             ) {
                 composable(NavRoute.Login.route) {
                     LoginRoute(

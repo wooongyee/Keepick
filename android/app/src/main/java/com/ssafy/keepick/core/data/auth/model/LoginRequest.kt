@@ -1,4 +1,4 @@
-package com.ssafy.keepick.core.data.model.auth
+package com.ssafy.keepick.core.data.auth.model
 
 import kotlinx.serialization.Serializable
 

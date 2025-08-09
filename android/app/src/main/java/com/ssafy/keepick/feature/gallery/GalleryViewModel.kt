@@ -1,6 +1,7 @@
 package com.ssafy.keepick.feature.gallery
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ssafy.keepick.core.domain.model.Resource
@@ -27,11 +28,9 @@ class GalleryViewModel @Inject constructor(
     }
 
     private fun loadInitialImages() = intent {
-        // 이전에 더미 데이터를 만들던 로직을 Repository 호출로 변경
-        photoRepository.getRandomPhotos(size = 20).onEach { resource ->
+        photoRepository.getRandomPhotos(size = 10).onEach { resource ->
             when (resource) {
                 is Resource.Success -> {
-                    // 서버에서 받은 Photo 리스트를 UI 모델인 GalleryImage 리스트로 변환
                     val images = resource.data.map { photo ->
                         GalleryImage(
                             id = photo.id.toString(),
@@ -41,6 +40,7 @@ class GalleryViewModel @Inject constructor(
                             status = ImageStatus.COMPLETE
                         )
                     }
+                    Log.d("GalleryViewModel", "Loaded images: $images")
                     reduce { state.copy(allImages = images) }
                 }
                 is Resource.Failure -> {

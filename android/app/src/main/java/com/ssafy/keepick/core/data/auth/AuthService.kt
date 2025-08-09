@@ -1,11 +1,10 @@
-package com.ssafy.keepick.core.data.service
+package com.ssafy.keepick.core.data.auth
 
-import com.ssafy.keepick.core.data.model.auth.LoginRequest
-import com.ssafy.keepick.core.data.model.auth.LoginResponse
+import com.ssafy.keepick.core.data.auth.model.LoginRequest
+import com.ssafy.keepick.core.data.auth.model.LoginResponse
 import com.ssafy.keepick.core.data.model.common.ApiResponse
 import retrofit2.http.Body
 import retrofit2.http.POST
-
 
 interface AuthService {
 

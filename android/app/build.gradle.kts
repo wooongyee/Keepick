@@ -1,3 +1,4 @@
+
 import java.util.Properties
 
 plugins {
@@ -8,6 +9,7 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.protobuf)
 }
 
 val properties = Properties()
@@ -66,6 +68,16 @@ android {
         compose = true
         buildConfig = true
     }
+
+//    @Suppress("UnstableApiUsage")
+//    androidComponents.onVariants { variant ->
+//        afterEvaluate {
+//            tasks.named("ksp${variant.name.replaceFirstChar { it.uppercase() }}Kotlin") {
+//                val protoTask = tasks.named("generate${variant.name.replaceFirstChar { it.uppercase() }}Proto")
+//                dependsOn(protoTask)
+//            }
+//        }
+//    }
 }
 
 dependencies {
@@ -101,7 +113,10 @@ dependencies {
     implementation(libs.orbit.compose)
 
     // DataStore
+    implementation(libs.androidx.datastore)
+    implementation(libs.androidx.datastore.core)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.protobuf.kotlin.lite)
 
     // Network (Retrofit & OkHttp)
     implementation(libs.retrofit.core)
@@ -137,3 +152,29 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
 }
+
+protobuf {
+    protoc {
+        artifact = libs.protobuf.protoc.get().toString()
+    }
+    generateProtoTasks {
+        all().forEach { task ->
+            task.builtins {
+                register("java") {
+                    option("lite")
+                }
+                register("kotlin") {
+                    option("lite")
+                }
+            }
+        }
+    }
+}
+androidComponents.beforeVariants {
+    android.sourceSets.getByName(it.name) {
+        val buildDir = layout.buildDirectory.get().asFile
+        java.srcDir(buildDir.resolve("generated/source/proto/${it.name}/java"))
+        kotlin.srcDir(buildDir.resolve("generated/source/proto/${it.name}/kotlin"))
+    }
+}
+
