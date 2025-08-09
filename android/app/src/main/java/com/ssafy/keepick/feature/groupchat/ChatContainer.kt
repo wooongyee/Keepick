@@ -21,15 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -71,7 +66,6 @@ fun ChatContainer(
                 )
                 .background(Color(0xFF1C1C1E))
         ) {
-            // [리팩토링] Fullscreen과 Floating 모드를 별도의 Composable로 분리하여 가독성 향상
             if (isFullScreen) {
                 FullscreenChatContent(
                     uiState = uiState,
@@ -126,12 +120,11 @@ private fun SharedTransitionScope.FullscreenChatContent(
 ) {
     val focusedParticipant =
         uiState.focusedParticipantId?.let { id -> uiState.participants.find { it.id == id } }
-    var initialControlSheetHeight by remember { mutableStateOf(0.dp) }
-    var hasMeasured by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
+    val collapsedControlSheetHeight = 120.dp
+
+
 
     Box(Modifier.fillMaxSize()) {
-        // --- 메인 콘텐츠 영역 (헤더 + 참가자 뷰) ---
         Column(Modifier.fillMaxSize()) {
             FullscreenHeader(
                 onBackClick = if (focusedParticipant != null) onClearFocus else onMinimize,
@@ -139,10 +132,9 @@ private fun SharedTransitionScope.FullscreenChatContent(
             )
 
             AnimatedContent(
-                // [2] 측정된 초기 높이값을 하단 패딩으로 사용
                 modifier = Modifier
                     .weight(1f)
-                    .padding(bottom = initialControlSheetHeight),
+                    .padding(bottom = collapsedControlSheetHeight),
                 targetState = focusedParticipant,
                 label = "GridToFocusTransition",
                 transitionSpec = {
@@ -164,7 +156,15 @@ private fun SharedTransitionScope.FullscreenChatContent(
             }
         }
 
-        Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .sharedElement(
+                    state = rememberSharedContentState(key = "groupchat-controls"),
+                    animatedVisibilityScope = animatedContentScope,
+                    boundsTransform = boundsTransform
+                )
+        ) {
             GroupChatControlSheet(
                 uiState = uiState,
                 onHangupClick = onHangupClick,
@@ -174,18 +174,6 @@ private fun SharedTransitionScope.FullscreenChatContent(
                 onShowSettings = onShowSettings,
                 onHideBottomSheet = onHideBottomSheet,
                 onToggleScreenShare = onToggleScreenShare,
-                modifier = Modifier
-                    .sharedElement(
-                        state = rememberSharedContentState(key = "groupchat-controls"),
-                        animatedVisibilityScope = animatedContentScope,
-                        boundsTransform = boundsTransform
-                    )
-                    .onSizeChanged { size ->
-                        if (!hasMeasured && size.height > 0) {
-                            initialControlSheetHeight = with(density) { size.height.toDp() }
-                            hasMeasured = true
-                        }
-                    }
             )
         }
     }
@@ -227,6 +215,7 @@ private fun SharedTransitionScope.FloatingChatContent(
         }
         ChatControls(
             isFullScreen = false,
+            isSheetExpanded = false,
             myParticipantState = myParticipantState,
             onHangupClick = onHangupClick,
             onToggleVideoClick = onToggleVideoClick,

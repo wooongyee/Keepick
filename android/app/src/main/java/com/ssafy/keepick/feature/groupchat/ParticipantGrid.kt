@@ -154,7 +154,6 @@ private fun GridParticipantItem(
     }
 }
 
-// [수정] 레이아웃 함수들이 ParticipantLayoutParams를 받도록 수정
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun ParticipantPageLayout_1(params: ParticipantLayoutParams) {
@@ -358,111 +357,4 @@ private fun HorizontalPagerIndicator(pagerState: PagerState, modifier: Modifier 
             )
         }
     }
-}
-)
-
-fun ParticipantCard(
-    participant: Participant,
-    emojiEvent: EmojiEvent?,
-    onEmojiShown: (String) -> Unit,
-    modifier: Modifier
-) {
-    Box(
-        modifier.background(Color.Gray.copy(0.3f), RoundedCornerShape(8.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(participant.name, color = Color.White)
-    }
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFF1C1C1E,
-    widthDp = 411,
-    heightDp = 891,
-    name = "No Share (1)"
-)
-@Composable
-private fun Preview_NoShare_1() {
-    ParticipantGrid(
-        participants = dummyParticipants.take(1),
-        emojiEvents = emptyMap(),
-        onEmojiShown = { _, _ -> })
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFF1C1C1E,
-    widthDp = 411,
-    heightDp = 891,
-    name = "No Share (2)"
-)
-@Composable
-private fun Preview_NoShare_2() {
-    ParticipantGrid(
-        participants = dummyParticipants.take(2),
-        emojiEvents = emptyMap(),
-        onEmojiShown = { _, _ -> })
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFF1C1C1E,
-    widthDp = 411,
-    heightDp = 891,
-    name = "No Share (3)"
-)
-@Composable
-private fun Preview_NoShare_3() {
-    ParticipantGrid(
-        participants = dummyParticipants.take(3),
-        emojiEvents = emptyMap(),
-        onEmojiShown = { _, _ -> })
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFF1C1C1E,
-    widthDp = 411,
-    heightDp = 891,
-    name = "No Share (4)"
-)
-@Composable
-private fun Preview_NoShare_4() {
-    ParticipantGrid(
-        participants = dummyParticipants.take(4),
-        emojiEvents = emptyMap(),
-        onEmojiShown = { _, _ -> })
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFF1C1C1E,
-    widthDp = 411,
-    heightDp = 891,
-    name = "Screen Share (3 Others)"
-)
-@Composable
-private fun Preview_Share_3() {
-    val participants =
-        listOf(dummyParticipants[0].copy(isScreenSharing = true)) + dummyParticipants.slice(1..3)
-    ParticipantGrid(
-        participants = participants,
-        emojiEvents = emptyMap(),
-        onEmojiShown = { _, _ -> })
-}
-
-@Preview(
-    showBackground = true,
-    backgroundColor = 0xFF1C1C1E,
-    widthDp = 411,
-    heightDp = 891,
-    name = "No Share (7 Paged)"
-)
-@Composable
-private fun Preview_NoShare_7_Paged() {
-    ParticipantGrid(
-        participants = dummyParticipants.take(7),
-        emojiEvents = emptyMap(),
-        onEmojiShown = { _, _ -> })
 }
