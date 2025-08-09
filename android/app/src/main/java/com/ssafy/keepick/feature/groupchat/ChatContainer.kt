@@ -2,6 +2,7 @@
 
 package com.ssafy.keepick.feature.groupchat
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -122,10 +124,17 @@ private fun SharedTransitionScope.FullscreenChatContent(
         uiState.focusedParticipantId?.let { id -> uiState.participants.find { it.id == id } }
     val collapsedControlSheetHeight = 120.dp
 
-
+    // 채팅 시트가 열려 있을 때 뒤로 가기 동작을 가로챕니다.
+    val isChatSheetOpen = uiState.bottomSheetContent != BottomSheetContent.NONE
+    BackHandler(enabled = isChatSheetOpen) {
+        onHideBottomSheet()
+    }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        Column(
+            Modifier.fillMaxSize()
+                .systemBarsPadding()
+        ) {
             FullscreenHeader(
                 onBackClick = if (focusedParticipant != null) onClearFocus else onMinimize,
                 onInviteClick = onInviteClick
@@ -171,7 +180,7 @@ private fun SharedTransitionScope.FullscreenChatContent(
                 onToggleVideoClick = onToggleVideoClick,
                 onToggleMicClick = onToggleMicClick,
                 onShowChatClick = onShowChatClick,
-                onShowSettings = onShowSettings,
+//                onShowSettings = onShowSettings,
                 onHideBottomSheet = onHideBottomSheet,
                 onToggleScreenShare = onToggleScreenShare,
             )

@@ -30,23 +30,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.ssafy.keepick.core.designsystem.theme.SheetBackground
 
 @Composable
 fun ChatControls(
     isFullScreen: Boolean,
     isSheetExpanded: Boolean,
     modifier: Modifier = Modifier,
-    myParticipantState: Participant?, // 내 상태를 받기 위한 파라미터 추가
+    myParticipantState: Participant?,
     onHangupClick: () -> Unit,
-    onToggleVideoClick: () -> Unit, // 파라미터 추가
-    onToggleMicClick: () -> Unit,   // 파라미터 추가
-    onShowChatClick: () -> Unit     // 파라미터 추가
+    onToggleVideoClick: () -> Unit,
+    onToggleMicClick: () -> Unit,
+    onShowChatClick: () -> Unit,
+    isChatButtonEnabled: Boolean = true,
 ) {
     val buttonSize = if (isFullScreen) 56.dp else 48.dp
-    // isFullScreen 상태에 따라 배경색을 결정하는 로직은 그대로 유지
-    val containerColor = if (isFullScreen) Color.Red else Color.Black.copy(alpha = 0.2f)
 
-    // [해결 3] isSheetExpanded 상태에 따라 padding과 cornerRadius를 애니메이션으로 처리합니다.
     val animatedPadding by animateDpAsState(
         targetValue = if (isSheetExpanded) 0.dp else 16.dp,
         animationSpec = tween(300),
@@ -58,18 +57,15 @@ fun ChatControls(
         label = "cornerRadiusAnimation"
     )
 
-    // [해결 4] Box로 Surface를 감싸서 외부 여백을 제어합니다.
     Box(
         modifier = modifier
             .fillMaxWidth()
-            // 위아래 고정 여백과 애니메이션되는 좌우 여백을 적용
-            .padding(horizontal = animatedPadding, vertical = 4.dp)
+            .padding(horizontal = animatedPadding)
     ) {
         Surface(
-            // 이제 Surface는 Box 안에서 크기가 조절됩니다.
             modifier = Modifier.fillMaxWidth(),
-            color = containerColor,
-            shape = RoundedCornerShape(animatedCorner) // 애니메이션되는 corner radius 적용
+            color = SheetBackground,
+            shape = RoundedCornerShape(animatedCorner)
         ) {
             Row(
                 modifier = Modifier.padding(vertical = 8.dp),
@@ -92,7 +88,8 @@ fun ChatControls(
                     ChatControlButton(
                         icon = Icons.AutoMirrored.Filled.Chat,
                         size = buttonSize,
-                        onClick = onShowChatClick
+                        onClick = onShowChatClick,
+                        enabled = isChatButtonEnabled
                     )
                 }
                 ChatControlButton(
@@ -112,9 +109,9 @@ fun ChatControlButton(
     size: Dp,
     onClick: () -> Unit,
     isEndCall: Boolean = false,
-    isToggled: Boolean = false // 토글 상태를 위한 파라미터 추가
+    isToggled: Boolean = false,
+    enabled: Boolean = true
 ) {
-    // isToggled 상태가 true이면 (예: 음소거됨) 배경색을 다르게 표시
     val backgroundColor = when {
         isEndCall -> Color.Red
         isToggled -> Color(0xFF5E5E5E) // 활성화(토글됨) 색상
@@ -122,6 +119,7 @@ fun ChatControlButton(
     }
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .size(size)
             .clip(CircleShape)
