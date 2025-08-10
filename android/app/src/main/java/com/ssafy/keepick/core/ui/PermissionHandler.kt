@@ -28,7 +28,7 @@ import com.google.accompanist.permissions.shouldShowRationale
 /**
  * 안드로이드 버전에 맞는 이미지 읽기 권한을 반환하는 유틸리티
  */
-private val storagePermission: String
+val storagePermission: String
     get() = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         Manifest.permission.READ_MEDIA_IMAGES
     } else {

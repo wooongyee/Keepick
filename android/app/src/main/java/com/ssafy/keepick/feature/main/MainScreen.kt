@@ -18,6 +18,8 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,9 +35,12 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ssafy.keepick.app.navigation.BottomNavItem
 import com.ssafy.keepick.core.ui.RequestStoragePermissionOnStart
-import com.ssafy.keepick.core.ui.rememberMultiplePhotoPicker
+import com.ssafy.keepick.core.ui.rememberLocalImages
 import com.ssafy.keepick.feature.gallery.GalleryRoute
 import com.ssafy.keepick.feature.gallery.GalleryViewModel
+import com.ssafy.keepick.feature.gallery.components.AiAnalysisInfoMenu
+import com.ssafy.keepick.feature.gallery.components.GalleryTopBar
+import com.ssafy.keepick.feature.gallery.components.PhotoPickerBottomSheet
 import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
 import com.ssafy.keepick.feature.group.components.GroupTopBar
@@ -66,17 +71,13 @@ fun MainScreen(
 
     var showCreateGroupSheet by remember { mutableStateOf(false) }
     var showPhotoPickerSheet by remember { mutableStateOf(false) }
+    var showAiMenu by remember { mutableStateOf(false) }
+
 
     val galleryViewModel: GalleryViewModel = hiltViewModel()
+    val galleryState by galleryViewModel.container.stateFlow.collectAsState()
 
-    // 새로운 Photo Picker 런처
-    val multiplePhotoPickerLauncher = rememberMultiplePhotoPicker { uris ->
-        // 이미지가 선택되면 ViewModel에 URI 목록 전달
-        if (uris.isNotEmpty()) {
-            galleryViewModel.addImagesToGallery(uris)
-        }
-    }
-
+    val localImages = rememberLocalImages()
 
     val sheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
@@ -91,6 +92,11 @@ fun MainScreen(
     )
 
     RequestStoragePermissionOnStart()
+
+    // 초기 그룹 이미지 로드
+    LaunchedEffect(Unit) {
+        galleryViewModel.loadImagesForGroup(currentGroupName)
+    }
 
     Scaffold(
         topBar = {
@@ -120,12 +126,11 @@ fun MainScreen(
                     )
                 }
                 BottomNavItem.Gallery.route -> {
-                    GroupTopBar(
+                    GalleryTopBar(
                         groupName = currentGroupName,
-                        onBackClick = {},
                         onGroupSelectClick = { isMenuExpanded = !isMenuExpanded },
-                        onAddClick = { showPhotoPickerSheet = true }, // '+' 버튼 클릭 시 BottomSheet 표시
-                        onVideoClick = { /* 갤러리에서는 영상통화 버튼 비활성화 또는 다른 기능 */ }
+                        onAiIconClick = { showAiMenu = true },
+                        onAddClick = { showPhotoPickerSheet = true }
                     )
                 }
             }
@@ -185,16 +190,9 @@ fun MainScreen(
                 composable(route = BottomNavItem.Gallery.route) {
                     GalleryRoute(
                         viewModel = galleryViewModel,
-                        onNavigateToCreateAlbum = { selectedIds ->
-                            // TODO: 앨범 만들기 화면으로 이동
-                            println("앨범 만들기 화면으로 이동: $selectedIds")
-                        },
-                        onNavigateToImageDetail = { imageId ->
-                            // TODO: 이미지 상세 보기 화면으로 이동
-                            println("이미지 상세 보기: $imageId")
-                        },
-                        // 비어 있는 갤러리 화면에서 업로드 버튼을 눌렀을 때도 Photo Picker 실행
-                        onUploadRequest = { multiplePhotoPickerLauncher() }
+                        onNavigateToCreateAlbum = { /* ... */ },
+                        onNavigateToImageDetail = { /* ... */ },
+                        onUploadRequest = { showPhotoPickerSheet = true }
                     )
                 }
                 composable(route = BottomNavItem.MyPage.route) {
@@ -210,10 +208,18 @@ fun MainScreen(
                 onGroupSelected = { selectedGroup ->
                     currentGroupName = selectedGroup
                     isMenuExpanded = false
+                    galleryViewModel.loadImagesForGroup(selectedGroup)
                 },
                 onDismissRequest = {
                     isMenuExpanded = false
                 }
+            )
+            AiAnalysisInfoMenu(
+                expanded = showAiMenu,
+                onDismissRequest = { showAiMenu = false },
+                isAnalyzing = galleryState.isAnalyzing,
+                analyzedCount = galleryState.analyzedImageCount,
+                totalCount = galleryState.totalImageCount
             )
         }
         if (showCreateGroupSheet) {
@@ -234,6 +240,23 @@ fun MainScreen(
                     onCreateGroup = {
                         showCreateGroupSheet = false
                         // TODO: 실제 그룹 생성 API 호출 로직
+                    }
+                )
+            }
+        }
+        // 커스텀 사진 선택 바텀시트 로직
+        if (showPhotoPickerSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showPhotoPickerSheet = false },
+                sheetState = sheetState,
+            ) {
+                PhotoPickerBottomSheet(
+                    localImageUris = localImages, // 로드한 이미지 목록 전달
+                    onDismissRequest = { showPhotoPickerSheet = false },
+                    onImagesSelected = { selectedUris ->
+                        // 선택 완료 시 ViewModel에 데이터 전달
+                        galleryViewModel.addImagesToGallery(selectedUris)
+                        showPhotoPickerSheet = false
                     }
                 )
             }

@@ -1,6 +1,6 @@
-// feature/gallery/components/PhotoPickerBottomSheet.kt (수정)
 package com.ssafy.keepick.feature.gallery.components
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,11 +23,11 @@ import com.ssafy.keepick.feature.gallery.model.ImageStatus
 
 @Composable
 fun PhotoPickerBottomSheet(
-    localImageUrls: List<String>, // 로컬 이미지 URI 리스트를 직접 받음
+    localImageUris: List<Uri>, // String 대신 Uri 타입을 받도록 수정
     onDismissRequest: () -> Unit,
-    onImagesSelected: (List<String>) -> Unit,
+    onImagesSelected: (List<Uri>) -> Unit, // Uri 타입을 반환하도록 수정
 ) {
-    val selectedImageUrls = remember { mutableStateListOf<String>() }
+    val selectedImageUris = remember { mutableStateListOf<Uri>() }
 
     Column(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
         Text(
@@ -42,19 +42,18 @@ fun PhotoPickerBottomSheet(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(localImageUrls, key = { it }) { imageUrl ->
-                // GalleryImageItem은 imageUrl만으로도 렌더링 가능하도록 더미 객체 생성
-                val dummyImage = remember(imageUrl) {
-                    GalleryImage(id = imageUrl, imageUrl = imageUrl, "", emptyList(), ImageStatus.COMPLETE)
+            items(localImageUris, key = { it }) { uri ->
+                val dummyImage = remember(uri) {
+                    GalleryImage(id = uri.toString(), imageUrl = uri.toString(), "", emptyList(), ImageStatus.COMPLETE)
                 }
                 GalleryImageItem(
                     image = dummyImage,
-                    isSelected = imageUrl in selectedImageUrls,
+                    isSelected = uri in selectedImageUris,
                     onClick = {
-                        if (imageUrl in selectedImageUrls) {
-                            selectedImageUrls.remove(imageUrl)
+                        if (uri in selectedImageUris) {
+                            selectedImageUris.remove(uri)
                         } else {
-                            selectedImageUrls.add(imageUrl)
+                            selectedImageUris.add(uri)
                         }
                     },
                     onLongClick = {}
@@ -63,13 +62,12 @@ fun PhotoPickerBottomSheet(
         }
         Button(
             onClick = {
-                onImagesSelected(selectedImageUrls.toList())
-                onDismissRequest()
+                onImagesSelected(selectedImageUris.toList())
             },
-            enabled = selectedImageUrls.isNotEmpty(),
+            enabled = selectedImageUris.isNotEmpty(),
             modifier = Modifier.fillMaxWidth().padding(16.dp)
         ) {
-            Text("${selectedImageUrls.size}개 사진 업로드")
+            Text("${selectedImageUris.size}개 사진 업로드")
         }
     }
 }

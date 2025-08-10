@@ -9,8 +9,10 @@ import com.ssafy.keepick.core.domain.photo.PhotoRepository
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
 import com.ssafy.keepick.feature.gallery.model.ImageStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import org.orbitmvi.orbit.ContainerHost
 import org.orbitmvi.orbit.viewmodel.container
 import java.util.UUID
@@ -23,8 +25,25 @@ class GalleryViewModel @Inject constructor(
 
     override val container = container<GalleryState, GallerySideEffect>(GalleryState())
 
-    init {
-        loadInitialImages() // ViewModel 생성 시 서버에서 이미지 로드
+    // 그룹별 이미지 로드 함수 추가 (현재는 시뮬레이션)
+    fun loadImagesForGroup(groupName: String) = intent {
+        reduce { state.copy(isLoading = true, allImages = emptyList(), selectedTag = "전체") }
+        delay(500) // 네트워크 요청 시뮬레이션
+
+        // 실제로는 여기서 groupName(또는 ID)을 사용하여 API를 호출해야 합니다.
+        val newImages = when (groupName) {
+            "SSAFY 13기 D207" -> (1..10).map {
+                GalleryImage(UUID.randomUUID().toString(), "https://picsum.photos/id/${10 + it}/200", "2025.08.10", listOf("#인물", "#스터디"), ImageStatus.COMPLETE)
+            }
+            "가족방" -> (1..5).map {
+                GalleryImage(UUID.randomUUID().toString(), "https://picsum.photos/id/${20 + it}/200", "2025.08.09", listOf("#풍경", "#여행"), ImageStatus.COMPLETE)
+            }
+            else -> (1..20).map {
+                GalleryImage(UUID.randomUUID().toString(), "https://picsum.photos/id/${30 + it}/200", "2025.08.08", listOf("#음식", "#도시"), ImageStatus.COMPLETE)
+            }
+        }
+        reduce { state.copy(isLoading = false, allImages = newImages) }
+        postSideEffect(GallerySideEffect.ShowToast("$groupName 갤러리를 불러왔습니다."))
     }
 
     private fun loadInitialImages() = intent {
@@ -52,32 +71,69 @@ class GalleryViewModel @Inject constructor(
             }
         }.launchIn(viewModelScope)
     }
-
-    // Photo Picker에서 선택된 이미지들을 갤러리에 추가
     fun addImagesToGallery(uris: List<Uri>) = intent {
         val newImages = uris.map { uri ->
             GalleryImage(
                 id = UUID.randomUUID().toString(),
-                imageUrl = uri.toString(), // URI를 문자열로 저장
-                date = "방금 전", // 실제로는 EXIF에서 추출
+                imageUrl = uri.toString(),
+                date = "방금 전",
                 tags = emptyList(),
-                status = ImageStatus.ANALYZING // 업로드 및 분석 시작 상태
+                status = ImageStatus.UPLOADING // 1. UPLOADING 상태로 먼저 추가
             )
         }
-        reduce {
-            state.copy(allImages = newImages + state.allImages) // 새 이미지를 맨 앞에 추가
+        reduce { state.copy(allImages = newImages + state.allImages) }
+
+        // 2. 백그라운드에서 업로드 및 분석 시뮬레이션
+        viewModelScope.launch {
+            startUploadAndAnalysis(newImages)
         }
-        // TODO: 백그라운드에서 실제 서버 업로드 작업 시작
     }
 
-    fun onTagSelect(tag: String) = intent {
+    private suspend fun startUploadAndAnalysis(images: List<GalleryImage>) = intent {
+        // 3. 실제 업로드 로직 (여기서는 delay로 시뮬레이션)
+        images.forEach { image ->
+            delay(1000) // 업로드 시간 시뮬레이션
+            reduce {
+                state.copy(allImages = state.allImages.map {
+                    if (it.id == image.id) it.copy(status = ImageStatus.ANALYZING) else it
+                })
+            }
+        }
+
+        // 4. AI 분석 시작
         reduce {
             state.copy(
-                selectedTag = tag,
-                isSelectionMode = false, // 태그 변경 시 선택 모드 해제
-                selectedImageIds = emptyList()
+                isAnalyzing = true,
+                totalImageCount = images.size,
+                analyzedImageCount = 0,
+                analysisProgress = 0f
             )
         }
+
+        for (i in images.indices) {
+            delay(1500) // AI 분석 시간 시뮬레이션
+            val analyzedImage = images[i]
+            reduce {
+                val newAnalyzedCount = state.analyzedImageCount + 1
+                state.copy(
+                    analyzedImageCount = newAnalyzedCount,
+                    analysisProgress = newAnalyzedCount.toFloat() / state.totalImageCount,
+                    allImages = state.allImages.map {
+                        if (it.id == analyzedImage.id) {
+                            it.copy(status = ImageStatus.COMPLETE, tags = listOf("#AI자동태그", "#분석완료"))
+                        } else it
+                    }
+                )
+            }
+        }
+
+        reduce { state.copy(isAnalyzing = false) }
+        postSideEffect(GallerySideEffect.ShowToast("${images.size}개 사진 분석 완료!"))
+    }
+
+
+    fun onTagSelect(tag: String) = intent {
+        reduce { state.copy(selectedTag = tag, isSelectionMode = false, selectedImageIds = emptyList()) }
     }
 
     fun onImageClick(imageId: String) = intent {
@@ -85,13 +141,7 @@ class GalleryViewModel @Inject constructor(
             val newSelection = state.selectedImageIds.toMutableList()
             if (newSelection.contains(imageId)) newSelection.remove(imageId)
             else newSelection.add(imageId)
-
-            reduce {
-                state.copy(
-                    selectedImageIds = newSelection,
-                    isSelectionMode = newSelection.isNotEmpty() // 선택된 것이 없으면 선택 모드 자동 해제
-                )
-            }
+            reduce { state.copy(selectedImageIds = newSelection, isSelectionMode = newSelection.isNotEmpty()) }
         } else {
             postSideEffect(GallerySideEffect.NavigateToImageDetail(imageId))
         }
@@ -99,23 +149,34 @@ class GalleryViewModel @Inject constructor(
 
     fun onImageLongClick(imageId: String) = intent {
         if (!state.isSelectionMode) {
-            reduce {
-                state.copy(isSelectionMode = true, selectedImageIds = listOf(imageId))
-            }
+            reduce { state.copy(isSelectionMode = true, selectedImageIds = listOf(imageId)) }
         }
     }
 
     fun onClearSelection() = intent {
-        reduce {
-            state.copy(isSelectionMode = false, selectedImageIds = emptyList())
-        }
+        reduce { state.copy(isSelectionMode = false, selectedImageIds = emptyList()) }
     }
 
     fun onCreateAlbumClick() = intent {
         if (state.selectedImageIds.isNotEmpty()) {
             postSideEffect(GallerySideEffect.NavigateToCreateAlbum(state.selectedImageIds))
-            // 앨범 만들기 화면으로 이동 후 선택 상태 초기화
             onClearSelection()
         }
+    }
+
+    fun onDeleteSelectedImages() = intent {
+        val remainingImages = state.allImages.filterNot { it.id in state.selectedImageIds }
+        reduce {
+            state.copy(
+                allImages = remainingImages,
+                selectedImageIds = emptyList(),
+                isSelectionMode = false
+            )
+        }
+        postSideEffect(GallerySideEffect.ShowToast("${state.selectedImageIds.size}개 사진 삭제 완료"))
+    }
+
+    fun onAiIconClick() = intent {
+
     }
 }

@@ -17,7 +17,6 @@ enum class ImageStatus {
     COMPLETE,  // 처리 완료
 }
 
-// 기존 GroupRoute.kt의 유틸리티 함수를 재사용/일반화
 fun Int.toDrawableUri(context: Context): String {
     return Uri.parse("android.resource://${context.packageName}/$this").toString()
 }
