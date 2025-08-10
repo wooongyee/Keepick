@@ -58,7 +58,8 @@ import com.ssafy.keepick.feature.mypage.MyPageRoute
 fun MainScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToTierAlbum: (String) -> Unit,
-    onNavigateToTimelineAlbum : (String) -> Unit,
+    onNavigateToTimelineAlbum: (String) -> Unit,
+    onNavigateToTierMaker: (String) -> Unit
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -186,14 +187,17 @@ fun MainScreen(
                 composable(route = BottomNavItem.Home.route) { HomeRoute() }
                 composable(route = BottomNavItem.Group.route) {
                     GroupRoute(
-                        onNavigateToTierMaker = onNavigateToTierAlbum,
+                        // 그룹 화면에서는 '보기' 기능만 필요
+                        onNavigateToTierMaker = onNavigateToTierAlbum, // 이름이 TierAlbum인 곳으로 감
                         onNavigateToTimelineAlbum = onNavigateToTimelineAlbum
                     )
                 }
                 composable(route = BottomNavItem.Gallery.route) {
                     GalleryRoute(
                         viewModel = galleryViewModel,
-                        onNavigateToCreateAlbum = { /* ... */ },
+                        // 갤러리에서는 '만들기' 기능이 필요
+                        onNavigateToTierMaker = onNavigateToTierMaker, // TierMaker로 감
+                        onNavigateToTimelineAlbum = onNavigateToTimelineAlbum, // TimelineAlbum으로 감
                         onNavigateToImageDetail = { /* ... */ },
                         onUploadRequest = { showPhotoPickerSheet = true },
                         onOpenTagFilter = { showTagFilterSheet = true }

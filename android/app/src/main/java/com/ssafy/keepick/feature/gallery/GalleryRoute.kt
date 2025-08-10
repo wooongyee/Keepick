@@ -1,9 +1,6 @@
 // feature/gallery/GalleryRoute.kt (수정)
 package com.ssafy.keepick.feature.gallery
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -12,7 +9,8 @@ import org.orbitmvi.orbit.compose.collectSideEffect
 @Composable
 fun GalleryRoute(
     viewModel: GalleryViewModel,
-    onNavigateToCreateAlbum: (List<String>) -> Unit,
+    onNavigateToTierMaker: (String) -> Unit,
+    onNavigateToTimelineAlbum: (String) -> Unit,
     onNavigateToImageDetail: (String) -> Unit,
     onUploadRequest: () -> Unit,
     onOpenTagFilter: () -> Unit
@@ -21,14 +19,15 @@ fun GalleryRoute(
 
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
-            is GallerySideEffect.NavigateToCreateAlbum -> onNavigateToCreateAlbum(sideEffect.imageIds)
+            // 변경된 SideEffect 이름에 맞게 처리
+            is GallerySideEffect.NavigateToTierMaker -> onNavigateToTierMaker(sideEffect.newAlbumId)
+            is GallerySideEffect.NavigateToTimelineAlbum -> onNavigateToTimelineAlbum(sideEffect.newAlbumId)
             is GallerySideEffect.NavigateToImageDetail -> onNavigateToImageDetail(sideEffect.imageId)
-            is GallerySideEffect.ShowToast -> {
-                // TODO: Toast 메시지 표시 로직 구현
-            }
+            is GallerySideEffect.ShowToast -> { /* ... */ }
         }
     }
 
+    // GalleryScreen 호출부는 변경 없음
     GalleryScreen(
         images = state.filteredImages,
         specialAiTags = state.specialAiTags,
@@ -43,10 +42,12 @@ fun GalleryRoute(
         onToggleTagSelection = viewModel::onToggleTagSelection, // 다중 선택 이벤트 핸들러 사용
         onImageClick = viewModel::onImageClick,
         onImageLongClick = viewModel::onImageLongClick,
+        onDeselectAll = viewModel::onDeselectAll,
         onClearSelection = viewModel::onClearSelection,
-        onCreateAlbumClick = viewModel::onCreateAlbumClick,
+        onCreateTierAlbumClick = viewModel::onCreateTierAlbumClick,
+        onCreateTimelineAlbumClick = viewModel::onCreateTimelineAlbumClick,
         onDeleteSelectedImages = viewModel::onDeleteSelectedImages,
         onFilterIconClick = onOpenTagFilter,
-        onUploadClick = onUploadRequest
+        onUploadClick = onUploadRequest,
     )
 }

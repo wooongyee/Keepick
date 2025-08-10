@@ -84,11 +84,17 @@ fun KeepickNavHost(
                 composable(NavRoute.Main.route) {
                     MainScreen(
                         onNavigateToLogin = { navController.navigate(NavRoute.Login.route) },
+                        // 앨범 보기용 콜백
                         onNavigateToTierAlbum = { albumId ->
                             navController.navigate(NavRoute.TierAlbum.createRoute(albumId))
                         },
-                        onNavigateToTimelineAlbum = {albumId ->
+                        // 앨범 보기 및 생성용 콜백 (재사용)
+                        onNavigateToTimelineAlbum = { albumId ->
                             navController.navigate(NavRoute.TimelineAlbum.createRoute(albumId))
+                        },
+                        // 앨범 생성용 콜백
+                        onNavigateToTierMaker = { albumId ->
+                            navController.navigate(NavRoute.TierMaker.createRoute(albumId))
                         }
                     )
                 }

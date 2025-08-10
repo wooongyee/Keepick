@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -79,7 +78,6 @@ fun CompactTagFilterView(
                         selected = isShowingOnlySelected,
                         onClick = { onShowOnlySelectedToggle(!isShowingOnlySelected) },
                         label = { Text("선택됨") },
-                        leadingIcon = { Icon(Icons.Default.Check, contentDescription = "선택됨 필터") }
                     )
                     Spacer(Modifier.width(8.dp))
                 }

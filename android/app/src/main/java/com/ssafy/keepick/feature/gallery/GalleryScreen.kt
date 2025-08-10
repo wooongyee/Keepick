@@ -1,9 +1,12 @@
-// feature/gallery/GalleryScreen.kt
 package com.ssafy.keepick.feature.gallery
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,10 +27,12 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddAPhoto
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -65,19 +70,21 @@ fun GalleryScreen(
     onImageClick: (String) -> Unit,
     onImageLongClick: (String) -> Unit,
     onClearSelection: () -> Unit,
-    onCreateAlbumClick: () -> Unit,
+    onDeselectAll: () -> Unit,
+    onCreateTierAlbumClick: () -> Unit,
+    onCreateTimelineAlbumClick: () -> Unit,
     onDeleteSelectedImages: () -> Unit,
     onFilterIconClick: () -> Unit,
     onUploadClick: () -> Unit
 ) {
     // 1. '선택됨' 필터의 활성화 상태를 GalleryScreen 내부에서 관리
     var isShowingOnlySelected by remember { mutableStateOf(false) }
+    // --- 핵심 수정 사항: 컨트롤러 표시 여부 상태 추가 ---
+    var isControllerVisible by remember { mutableStateOf(true) }
 
-    // 2. 선택 모드가 해제되면, '선택됨' 필터 상태도 자동으로 해제
+    // 선택 모드가 변경될 때마다 컨트롤러를 항상 보이도록 초기화
     LaunchedEffect(isSelectionMode) {
-        if (!isSelectionMode) {
-            isShowingOnlySelected = false
-        }
+        isControllerVisible = true
     }
 
     // 3. '선택됨' 필터 상태에 따라 그리드에 표시할 최종 이미지 목록 결정
@@ -132,18 +139,39 @@ fun GalleryScreen(
         }
 
         AnimatedVisibility(
-            visible = isSelectionMode,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            visible = isSelectionMode && isControllerVisible,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow)
+            ) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
+            modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
         ) {
             SelectionController(
                 selectedCount = selectedImageIds.size,
-                onCreateAlbumClick = onCreateAlbumClick,
-                onDeleteClick = onDeleteSelectedImages
+                totalCount = displayedImages.size,
+                onDeselectAll = onDeselectAll,
+                onCreateTierAlbumClick = onCreateTierAlbumClick,
+                onCreateTimelineAlbumClick = onCreateTimelineAlbumClick,
+                onDeleteClick = onDeleteSelectedImages,
+                onDismissRequest = { isControllerVisible = false } // 숨기기 버튼 클릭 시 상태 변경
             )
+        }
+
+        // 2. 컨트롤러가 숨겨졌을 때 나타나는 '보이기' 버튼
+        AnimatedVisibility(
+            visible = isSelectionMode && !isControllerVisible,
+            enter = scaleIn(),
+            exit = scaleOut(),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+        ) {
+            FloatingActionButton(
+                onClick = { isControllerVisible = true }, // 클릭 시 컨트롤러 다시 표시
+                shape = CircleShape,
+                modifier = Modifier.size(48.dp) // 작은 사이즈로 변경
+            ) {
+                Icon(Icons.Default.KeyboardArrowUp, contentDescription = "컨트롤러 보이기")
+            }
         }
 
         // 우하단 AI 분석 상태 표시기

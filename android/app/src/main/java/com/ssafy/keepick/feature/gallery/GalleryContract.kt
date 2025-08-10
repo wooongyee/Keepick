@@ -12,6 +12,7 @@ data class GalleryState(
     val isSelectionMode: Boolean = false,
     val isLoading: Boolean = false,
     val isAnalyzing: Boolean = false,
+    val isCreatingAlbum: Boolean = false,
     val analysisProgress: Float = 0f
 ) {
     val filteredImages: List<GalleryImage>
@@ -28,7 +29,9 @@ data class GalleryState(
 }
 
 sealed interface GallerySideEffect {
-    data class NavigateToCreateAlbum(val imageIds: List<String>) : GallerySideEffect
+    // SideEffect의 이름을 최종 목적지에 맞게 명확히 변경
+    data class NavigateToTierMaker(val newAlbumId: String) : GallerySideEffect
+    data class NavigateToTimelineAlbum(val newAlbumId: String) : GallerySideEffect
     data class NavigateToImageDetail(val imageId: String) : GallerySideEffect
     data class ShowToast(val message: String) : GallerySideEffect
 }

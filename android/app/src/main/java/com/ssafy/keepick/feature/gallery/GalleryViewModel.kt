@@ -188,32 +188,81 @@ class GalleryViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * '전체 선택' 또는 '전체 해제' 버튼을 클릭했을 때 호출됩니다.
+     * 현재 필터링된 이미지를 기준으로 동작합니다.
+     */
+    fun onDeselectAll() = intent {
+        reduce { state.copy(selectedImageIds = emptyList()) }
+    }
+
     fun onImageClick(imageId: String) = intent {
         if (state.isSelectionMode) {
+            // 선택 모드일 때는 롱클릭이 아닌 일반 클릭으로도 선택/해제 가능
             val newSelection = state.selectedImageIds.toMutableList()
-            if (newSelection.contains(imageId)) newSelection.remove(imageId)
-            else newSelection.add(imageId)
+            if (newSelection.contains(imageId)) {
+                newSelection.remove(imageId)
+            } else {
+                newSelection.add(imageId)
+            }
+            // 마지막 아이템 선택 해제 시, 선택 모드도 함께 종료
             reduce { state.copy(selectedImageIds = newSelection, isSelectionMode = newSelection.isNotEmpty()) }
         } else {
+            // 선택 모드가 아닐 때는 상세 화면으로 이동
             postSideEffect(GallerySideEffect.NavigateToImageDetail(imageId))
         }
     }
 
+    /**
+     * --- 핵심 수정 사항 ---
+     * 이미지 롱클릭 시 선택 모드를 시작하고, 해당 이미지를 선택 목록에 추가합니다.
+     */
     fun onImageLongClick(imageId: String) = intent {
-        if (!state.isSelectionMode) {
-            reduce { state.copy(isSelectionMode = true, selectedImageIds = listOf(imageId)) }
-        }
+        // 이미 선택 모드인 경우는 무시 (첫 진입 시에만 동작)
+        if (state.isSelectionMode) return@intent
+
+        // isSelectionMode를 true로 변경하고, 롱클릭한 이미지 ID를 selectedImageIds에 추가
+        reduce { state.copy(isSelectionMode = true, selectedImageIds = listOf(imageId)) }
     }
 
     fun onClearSelection() = intent {
         reduce { state.copy(isSelectionMode = false, selectedImageIds = emptyList()) }
     }
+    fun onCreateTierAlbumClick() = intent {
+        if (state.isCreatingAlbum || state.selectedImageIds.isEmpty()) return@intent
 
-    fun onCreateAlbumClick() = intent {
-        if (state.selectedImageIds.isNotEmpty()) {
-            postSideEffect(GallerySideEffect.NavigateToCreateAlbum(state.selectedImageIds))
-            onClearSelection()
-        }
+        // 1. 앨범 생성 시작을 알리고 로딩 상태로 변경
+        reduce { state.copy(isCreatingAlbum = true) }
+        postSideEffect(GallerySideEffect.ShowToast("티어 앨범 생성을 요청합니다..."))
+
+        // 2. 백엔드 API 호출 시뮬레이션 (1초 딜레이)
+        delay(1000)
+        val newAlbumId = "tier-" + UUID.randomUUID().toString().take(8)
+
+        // 이름이 변경된 SideEffect 발생
+        postSideEffect(GallerySideEffect.NavigateToTierMaker(newAlbumId))
+
+        // 3. 작업 완료 후, 받은 ID로 SideEffect를 보내고 상태 정리
+        reduce { state.copy(isCreatingAlbum = false) }
+        onClearSelection()
+    }
+
+    fun onCreateTimelineAlbumClick() = intent {
+        if (state.isCreatingAlbum || state.selectedImageIds.isEmpty()) return@intent
+
+        // 1. 앨범 생성 시작
+        reduce { state.copy(isCreatingAlbum = true) }
+        postSideEffect(GallerySideEffect.ShowToast("타임라인 앨범 생성을 요청합니다..."))
+
+        // 2. 백엔드 API 호출 시뮬레이션 (1초 딜레이)
+        delay(1000)
+        val newAlbumId = "timeline-" + UUID.randomUUID().toString().take(8)
+
+        // 3. 작업 완료 후, 받은 ID로 SideEffect를 보내고 상태 정리
+        postSideEffect(GallerySideEffect.NavigateToTimelineAlbum(newAlbumId))
+        reduce { state.copy(isCreatingAlbum = false) }
+        onClearSelection()
     }
 
     fun onDeleteSelectedImages() = intent {
