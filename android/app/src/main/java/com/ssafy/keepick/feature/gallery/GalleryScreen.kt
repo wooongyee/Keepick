@@ -1,6 +1,9 @@
 package com.ssafy.keepick.feature.gallery
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
@@ -53,9 +56,11 @@ import com.ssafy.keepick.feature.gallery.components.GalleryImageItem
 import com.ssafy.keepick.feature.gallery.components.SelectionController
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun GalleryScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     images: List<GalleryImage>,
     specialAiTags: List<String>,
     personTags: List<String>,
@@ -67,7 +72,8 @@ fun GalleryScreen(
     isAnalyzing: Boolean,
     analysisProgress: Float,
     onToggleTagSelection: (String) -> Unit, // <- 다중 선택 핸들러만 남김
-    onImageClick: (String) -> Unit,
+    onToggleImageSelection: (String) -> Unit, // 이름 변경: onImageClick -> onToggleImageSelection
+    onNavigateToImageDetail: (String) -> Unit,
     onImageLongClick: (String) -> Unit,
     onClearSelection: () -> Unit,
     onDeselectAll: () -> Unit,
@@ -128,9 +134,19 @@ fun GalleryScreen(
                     // 4. 필터링된 최종 이미지 목록을 그리드에 전달
                     items(displayedImages, key = { it.id }) { image ->
                         GalleryImageItem(
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope,
                             image = image,
                             isSelected = image.id in selectedImageIds,
-                            onClick = { onImageClick(image.id) },
+                            onClick = {
+                                if (isSelectionMode) {
+                                    // 선택 모드일 때는 ViewModel의 선택 토글 함수 호출
+                                    onToggleImageSelection(image.id)
+                                } else {
+                                    // 선택 모드가 아닐 때는 내비게이션 콜백 호출
+                                    onNavigateToImageDetail(image.id)
+                                }
+                            },
                             onLongClick = { onImageLongClick(image.id) }
                         )
                     }

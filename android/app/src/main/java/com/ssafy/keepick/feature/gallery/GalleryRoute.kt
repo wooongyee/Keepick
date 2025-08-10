@@ -1,13 +1,19 @@
 // feature/gallery/GalleryRoute.kt (수정)
 package com.ssafy.keepick.feature.gallery
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.orbitmvi.orbit.compose.collectSideEffect
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun GalleryRoute(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     viewModel: GalleryViewModel,
     onNavigateToTierMaker: (String) -> Unit,
     onNavigateToTimelineAlbum: (String) -> Unit,
@@ -29,6 +35,8 @@ fun GalleryRoute(
 
     // GalleryScreen 호출부는 변경 없음
     GalleryScreen(
+        sharedTransitionScope = sharedTransitionScope,
+        animatedVisibilityScope = animatedVisibilityScope,
         images = state.filteredImages,
         specialAiTags = state.specialAiTags,
         personTags = state.personTags,
@@ -40,7 +48,8 @@ fun GalleryRoute(
         isAnalyzing = state.isAnalyzing,
         analysisProgress = state.analysisProgress,
         onToggleTagSelection = viewModel::onToggleTagSelection, // 다중 선택 이벤트 핸들러 사용
-        onImageClick = viewModel::onImageClick,
+        onToggleImageSelection = viewModel::onToggleImageSelection, // ViewModel의 함수 연결
+        onNavigateToImageDetail = onNavigateToImageDetail, // 상위로부터 받은 내비게이션 콜백 연결
         onImageLongClick = viewModel::onImageLongClick,
         onDeselectAll = viewModel::onDeselectAll,
         onClearSelection = viewModel::onClearSelection,

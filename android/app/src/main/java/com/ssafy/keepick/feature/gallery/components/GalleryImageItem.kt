@@ -1,5 +1,8 @@
 package com.ssafy.keepick.feature.gallery.components
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -29,7 +32,7 @@ import coil.compose.AsyncImage
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
 import com.ssafy.keepick.feature.gallery.model.ImageStatus
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun GalleryImageItem(
     modifier: Modifier = Modifier,
@@ -37,28 +40,55 @@ fun GalleryImageItem(
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    // --- 핵심 수정 사항: 애니메이션 스코프를 Nullable로 만들어 선택적으로 받도록 변경 ---
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(4.dp))
+            .clip(MaterialTheme.shapes.small)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
     ) {
+        // --- 히어로 애니메이션 적용을 조건부로 처리 ---
+        val imageModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            // 스코프가 제공된 경우에만 sharedElement 적용
+            with(sharedTransitionScope) {
+                Modifier
+                    .fillMaxSize()
+                    .sharedElement(
+                        state = rememberSharedContentState(key = "image-${image.id}"),
+                        animatedVisibilityScope = animatedVisibilityScope
+                    )
+            }
+        } else {
+            // 스코프가 없으면 기본 Modifier 사용
+            Modifier.fillMaxSize()
+        }
+
         AsyncImage(
             model = image.imageUrl,
-            contentDescription = "갤러리 이미지 ${image.id}",
+            contentDescription = "갤러리 이미지",
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = imageModifier
         )
 
-        // 업로드/분석 중 오버레이
+        // 이미지 상태(업로드 중, 분석 중) 오버레이
         when (image.status) {
-            ImageStatus.UPLOADING -> UploadingOverlay()
-            ImageStatus.ANALYZING -> AnalyzingOverlay()
-            ImageStatus.COMPLETE -> { /* No overlay */ }
+            ImageStatus.UPLOADING, ImageStatus.ANALYZING -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                }
+            }
+            else -> { /* COMPLETE 상태에서는 아무것도 표시하지 않음 */ }
         }
 
         // 선택됨 오버레이
@@ -66,17 +96,17 @@ fun GalleryImageItem(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.4f))
-            )
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = "선택됨",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(4.dp)
-                    .size(24.dp)
-            )
+                    .background(Color.Black.copy(alpha = 0.5f))
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "선택됨",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                )
+            }
         }
     }
 }

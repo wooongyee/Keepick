@@ -1,6 +1,9 @@
 package com.ssafy.keepick.feature.main
 
 import MypageTopBar
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,13 +56,16 @@ import com.ssafy.keepick.feature.home.HomeRoute
 import com.ssafy.keepick.feature.home.components.HomeTopBar
 import com.ssafy.keepick.feature.mypage.MyPageRoute
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun MainScreen(
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
     onNavigateToLogin: () -> Unit,
     onNavigateToTierAlbum: (String) -> Unit,
     onNavigateToTimelineAlbum: (String) -> Unit,
-    onNavigateToTierMaker: (String) -> Unit
+    onNavigateToTierMaker: (String) -> Unit,
+    onNavigateToImageDetail: (String) -> Unit,
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -194,11 +200,13 @@ fun MainScreen(
                 }
                 composable(route = BottomNavItem.Gallery.route) {
                     GalleryRoute(
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
                         viewModel = galleryViewModel,
                         // 갤러리에서는 '만들기' 기능이 필요
                         onNavigateToTierMaker = onNavigateToTierMaker, // TierMaker로 감
                         onNavigateToTimelineAlbum = onNavigateToTimelineAlbum, // TimelineAlbum으로 감
-                        onNavigateToImageDetail = { /* ... */ },
+                        onNavigateToImageDetail = onNavigateToImageDetail,
                         onUploadRequest = { showPhotoPickerSheet = true },
                         onOpenTagFilter = { showTagFilterSheet = true }
                     )

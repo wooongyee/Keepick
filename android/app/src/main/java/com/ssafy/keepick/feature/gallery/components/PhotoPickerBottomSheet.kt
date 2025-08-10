@@ -1,6 +1,7 @@
 package com.ssafy.keepick.feature.gallery.components
 
 import android.net.Uri
+import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
 import com.ssafy.keepick.feature.gallery.model.ImageStatus
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun PhotoPickerBottomSheet(
     localImageUris: List<Uri>, // String 대신 Uri 타입을 받도록 수정

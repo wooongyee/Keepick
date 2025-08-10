@@ -2,11 +2,11 @@ package com.ssafy.keepick.feature.gallery
 
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
 data class GalleryState(
+    val groupName: String = "",
     val allImages: List<GalleryImage> = emptyList(),
     val specialAiTags: List<String> = listOf("유사한 사진", "흐린 사진"),
     val personTags: List<String> = emptyList(),
     val generalTags: List<String> = listOf("인물", "풍경", "음식", "바다", "산", "도시"),
-    // 단일 선택에서 다중 선택으로 변경
     val selectedTags: List<String> = emptyList(),
     val selectedImageIds: List<String> = emptyList(),
     val isSelectionMode: Boolean = false,
