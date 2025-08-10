@@ -33,10 +33,8 @@ fun AiAnalysisInfoMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
     isAnalyzing: Boolean,
-    analyzedCount: Int,
-    totalCount: Int
+    analysisProgress: Float // 파라미터를 progress로 변경
 ) {
-    // 배경을 어둡게 처리하고, 클릭 시 메뉴가 닫히도록 하는 Scrim
     if (expanded) {
         Box(
             modifier = Modifier
@@ -50,7 +48,6 @@ fun AiAnalysisInfoMenu(
         )
     }
 
-    // 메뉴 애니메이션
     AnimatedVisibility(
         visible = expanded,
         enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
@@ -59,7 +56,7 @@ fun AiAnalysisInfoMenu(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(enabled = false) {}, // 메뉴 영역 클릭 방지
+                .clickable(enabled = false) {},
             shape = RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
             shadowElevation = 4.dp
         ) {
@@ -68,21 +65,21 @@ fun AiAnalysisInfoMenu(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (isAnalyzing) {
-                    // 분석 중일 때 표시할 내용
-                    Text("AI 분석이 진행 중입니다.", style = MaterialTheme.typography.titleMedium)
+                    Text("AI 동시 분석이 진행 중입니다.", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
+                    // progress 값을 직접 사용
                     LinearProgressIndicator(
-                        progress = if (totalCount > 0) analyzedCount.toFloat() / totalCount else 0f,
+                        progress = analysisProgress,
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(4.dp))
+                    // 카운트 대신 퍼센트 표시
                     Text(
-                        "($analyzedCount / $totalCount)",
+                        text = "분석 진행률: ${(analysisProgress * 100).toInt()}%",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 } else {
-                    // 분석 중이 아닐 때 표시할 내용
                     Text("AI 분석 기능 안내", style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(

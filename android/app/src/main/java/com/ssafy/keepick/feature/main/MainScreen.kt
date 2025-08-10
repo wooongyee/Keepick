@@ -2,6 +2,7 @@ package com.ssafy.keepick.feature.main
 
 import MypageTopBar
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -41,6 +42,7 @@ import com.ssafy.keepick.feature.gallery.GalleryViewModel
 import com.ssafy.keepick.feature.gallery.components.AiAnalysisInfoMenu
 import com.ssafy.keepick.feature.gallery.components.GalleryTopBar
 import com.ssafy.keepick.feature.gallery.components.PhotoPickerBottomSheet
+import com.ssafy.keepick.feature.gallery.components.TagFilterSheetContent
 import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
 import com.ssafy.keepick.feature.group.components.GroupTopBar
@@ -72,17 +74,18 @@ fun MainScreen(
     var showCreateGroupSheet by remember { mutableStateOf(false) }
     var showPhotoPickerSheet by remember { mutableStateOf(false) }
     var showAiMenu by remember { mutableStateOf(false) }
-
+    var showTagFilterSheet by remember { mutableStateOf(false) }
 
     val galleryViewModel: GalleryViewModel = hiltViewModel()
     val galleryState by galleryViewModel.container.stateFlow.collectAsState()
 
     val localImages = rememberLocalImages()
 
-    val sheetState = rememberModalBottomSheetState(
+    val createGroupSheetState = rememberModalBottomSheetState(
         skipPartiallyExpanded = true,
         confirmValueChange = { it != SheetValue.Hidden }
     )
+    val tagFilterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var createGroupStep by remember { mutableStateOf(CreateGroupStep.INPUT_INFO) }
     val bottomNavItems = listOf(
         BottomNavItem.Home,
@@ -192,7 +195,8 @@ fun MainScreen(
                         viewModel = galleryViewModel,
                         onNavigateToCreateAlbum = { /* ... */ },
                         onNavigateToImageDetail = { /* ... */ },
-                        onUploadRequest = { showPhotoPickerSheet = true }
+                        onUploadRequest = { showPhotoPickerSheet = true },
+                        onOpenTagFilter = { showTagFilterSheet = true }
                     )
                 }
                 composable(route = BottomNavItem.MyPage.route) {
@@ -218,14 +222,13 @@ fun MainScreen(
                 expanded = showAiMenu,
                 onDismissRequest = { showAiMenu = false },
                 isAnalyzing = galleryState.isAnalyzing,
-                analyzedCount = galleryState.analyzedImageCount,
-                totalCount = galleryState.totalImageCount
+                analysisProgress = galleryState.analysisProgress // progress 값을 전달
             )
         }
         if (showCreateGroupSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showCreateGroupSheet = false },
-                sheetState = sheetState,
+                sheetState = createGroupSheetState,
                 dragHandle = null // 2. 기본 드래그 핸들을 완전히 제거합니다.
             ) {
                 CreateGroupBottomSheet(
@@ -248,7 +251,7 @@ fun MainScreen(
         if (showPhotoPickerSheet) {
             ModalBottomSheet(
                 onDismissRequest = { showPhotoPickerSheet = false },
-                sheetState = sheetState,
+                sheetState = createGroupSheetState,
             ) {
                 PhotoPickerBottomSheet(
                     localImageUris = localImages, // 로드한 이미지 목록 전달
@@ -258,6 +261,25 @@ fun MainScreen(
                         galleryViewModel.addImagesToGallery(selectedUris)
                         showPhotoPickerSheet = false
                     }
+                )
+            }
+        }
+        if (showTagFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showTagFilterSheet = false },
+                sheetState = tagFilterSheetState // 생성한 State 연결
+            ) {
+                TagFilterSheetContent(
+                    // 2. 시트의 최대 높이를 화면의 70%로 제한하는 Modifier 전달
+                    modifier = Modifier.fillMaxHeight(0.7f),
+                    initialSelectedTags = galleryState.selectedTags,
+                    specialAiTags = galleryState.specialAiTags,
+                    personTags = galleryState.personTags,
+                    generalTags = galleryState.generalTags,
+                    onApply = { newSelection ->
+                        galleryViewModel.onApplyFilters(newSelection)
+                        showTagFilterSheet = false
+                    },
                 )
             }
         }

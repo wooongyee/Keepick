@@ -1,25 +1,29 @@
 package com.ssafy.keepick.feature.gallery
 
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
-
 data class GalleryState(
     val allImages: List<GalleryImage> = emptyList(),
-    val allTags: List<String> = listOf("전체", "#유사한 사진", "#흐린 사진", "#인물", "#풍경", "#음식", "#바다", "#산", "#도시"),
-    val selectedTag: String = "전체",
+    val specialAiTags: List<String> = listOf("유사한 사진", "흐린 사진"),
+    val personTags: List<String> = emptyList(),
+    val generalTags: List<String> = listOf("인물", "풍경", "음식", "바다", "산", "도시"),
+    // 단일 선택에서 다중 선택으로 변경
+    val selectedTags: List<String> = emptyList(),
     val selectedImageIds: List<String> = emptyList(),
     val isSelectionMode: Boolean = false,
+    val isLoading: Boolean = false,
     val isAnalyzing: Boolean = false,
-    val analysisProgress: Float = 0f,
-    val analyzedImageCount: Int = 0,
-    val totalImageCount: Int = 0,
-    val isLoading: Boolean = false
+    val analysisProgress: Float = 0f
 ) {
-    // 필터링된 이미지 목록을 계산 속성으로 제공
     val filteredImages: List<GalleryImage>
-        get() = if (selectedTag == "전체") {
-            allImages
-        } else {
-            allImages.filter { it.tags.contains(selectedTag) }
+        get() {
+            // 선택된 태그가 없으면 모든 이미지 반환
+            if (selectedTags.isEmpty()) return allImages
+
+            val cleanSelectedTags = selectedTags.map { it.removePrefix("#") }
+            return allImages.filter { image ->
+                // 이미지의 태그 중 하나라도 선택된 태그 목록에 포함되는지 확인
+                image.tags.any { tag -> cleanSelectedTags.contains(tag.removePrefix("#")) }
+            }
         }
 }
 

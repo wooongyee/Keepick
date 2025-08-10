@@ -20,17 +20,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class GalleryViewModel @Inject constructor(
-    private val photoRepository: PhotoRepository // Repository 주입
+    private val photoRepository: PhotoRepository
 ) : ViewModel(), ContainerHost<GalleryState, GallerySideEffect> {
 
     override val container = container<GalleryState, GallerySideEffect>(GalleryState())
 
     // 그룹별 이미지 로드 함수 추가 (현재는 시뮬레이션)
     fun loadImagesForGroup(groupName: String) = intent {
-        reduce { state.copy(isLoading = true, allImages = emptyList(), selectedTag = "전체") }
+        // 그룹 변경 시, 필터 상태(selectedTags)를 초기화하도록 수정
+        reduce { state.copy(isLoading = true, allImages = emptyList(), selectedTags = emptyList()) }
         delay(500) // 네트워크 요청 시뮬레이션
 
-        // 실제로는 여기서 groupName(또는 ID)을 사용하여 API를 호출해야 합니다.
         val newImages = when (groupName) {
             "SSAFY 13기 D207" -> (1..10).map {
                 GalleryImage(UUID.randomUUID().toString(), "https://picsum.photos/id/${10 + it}/200", "2025.08.10", listOf("#인물", "#스터디"), ImageStatus.COMPLETE)
@@ -42,7 +42,9 @@ class GalleryViewModel @Inject constructor(
                 GalleryImage(UUID.randomUUID().toString(), "https://picsum.photos/id/${30 + it}/200", "2025.08.08", listOf("#음식", "#도시"), ImageStatus.COMPLETE)
             }
         }
+        // 로딩 완료 후, 새로운 태그를 즉시 갱신
         reduce { state.copy(isLoading = false, allImages = newImages) }
+        refreshTags()
         postSideEffect(GallerySideEffect.ShowToast("$groupName 갤러리를 불러왔습니다."))
     }
 
@@ -53,9 +55,9 @@ class GalleryViewModel @Inject constructor(
                     val images = resource.data.map { photo ->
                         GalleryImage(
                             id = photo.id.toString(),
-                            imageUrl = photo.thumbnailUrl, // 썸네일 URL 사용
+                            imageUrl = photo.thumbnailUrl,
                             date = photo.takenAt,
-                            tags = listOf("#서버", "#랜덤"), // 태그는 필요시 API 응답에 추가
+                            tags = listOf("#서버", "#랜덤"),
                             status = ImageStatus.COMPLETE
                         )
                     }
@@ -66,11 +68,12 @@ class GalleryViewModel @Inject constructor(
                     postSideEffect(GallerySideEffect.ShowToast("이미지 로딩 실패: ${resource.errorMessage}"))
                 }
                 is Resource.Loading -> {
-                    // TODO: 로딩 상태 UI 표시 (예: 스켈레톤 UI, 전체 프로그레스 바)
+                    // 로딩 상태 처리
                 }
             }
         }.launchIn(viewModelScope)
     }
+
     fun addImagesToGallery(uris: List<Uri>) = intent {
         val newImages = uris.map { uri ->
             GalleryImage(
@@ -78,21 +81,19 @@ class GalleryViewModel @Inject constructor(
                 imageUrl = uri.toString(),
                 date = "방금 전",
                 tags = emptyList(),
-                status = ImageStatus.UPLOADING // 1. UPLOADING 상태로 먼저 추가
+                status = ImageStatus.UPLOADING
             )
         }
         reduce { state.copy(allImages = newImages + state.allImages) }
 
-        // 2. 백그라운드에서 업로드 및 분석 시뮬레이션
         viewModelScope.launch {
             startUploadAndAnalysis(newImages)
         }
     }
 
     private suspend fun startUploadAndAnalysis(images: List<GalleryImage>) = intent {
-        // 3. 실제 업로드 로직 (여기서는 delay로 시뮬레이션)
         images.forEach { image ->
-            delay(1000) // 업로드 시간 시뮬레이션
+            delay(200)
             reduce {
                 state.copy(allImages = state.allImages.map {
                     if (it.id == image.id) it.copy(status = ImageStatus.ANALYZING) else it
@@ -100,42 +101,93 @@ class GalleryViewModel @Inject constructor(
             }
         }
 
-        // 4. AI 분석 시작
+        reduce { state.copy(isAnalyzing = true, analysisProgress = 0f) }
+
+        val totalAnalysisTime = 1000L + (images.size * 500L)
+        var elapsedTime = 0L
+        val updateInterval = 100L
+
+        while (elapsedTime < totalAnalysisTime) {
+            delay(updateInterval)
+            elapsedTime += updateInterval
+            val progress = (elapsedTime.toFloat() / totalAnalysisTime).coerceAtMost(1.0f)
+            reduce { state.copy(analysisProgress = progress) }
+        }
+
+        val analyzedIds = images.map { it.id }
         reduce {
             state.copy(
-                isAnalyzing = true,
-                totalImageCount = images.size,
-                analyzedImageCount = 0,
-                analysisProgress = 0f
+                isAnalyzing = false,
+                allImages = state.allImages.map {
+                    if (it.id in analyzedIds) {
+                        it.copy(status = ImageStatus.COMPLETE, tags = listOf("#풍경", "#바다", "#김민수").shuffled())
+                    } else it
+                }
             )
         }
 
-        for (i in images.indices) {
-            delay(1500) // AI 분석 시간 시뮬레이션
-            val analyzedImage = images[i]
-            reduce {
-                val newAnalyzedCount = state.analyzedImageCount + 1
-                state.copy(
-                    analyzedImageCount = newAnalyzedCount,
-                    analysisProgress = newAnalyzedCount.toFloat() / state.totalImageCount,
-                    allImages = state.allImages.map {
-                        if (it.id == analyzedImage.id) {
-                            it.copy(status = ImageStatus.COMPLETE, tags = listOf("#AI자동태그", "#분석완료"))
-                        } else it
+        refreshTags()
+        postSideEffect(GallerySideEffect.ShowToast("${images.size}개 사진 동시 분석 완료!"))
+    }
+
+    private fun refreshTags() = intent {
+        val allTagsFromImages = state.allImages
+            .flatMap { it.tags }
+            .map { it.removePrefix("#") }
+            .distinct()
+
+        val knownPersonNames = listOf("김민수", "이영희")
+        val personTags = allTagsFromImages.filter { it in knownPersonNames }
+
+        val baseGeneralTags = listOf("인물", "풍경", "음식", "바다", "산", "도시")
+        val specialTags = state.specialAiTags
+        val newGeneralTags = allTagsFromImages.filter { it !in personTags && it !in specialTags && it != "분석완료" }
+
+        reduce {
+            state.copy(
+                personTags = personTags.distinct(),
+                generalTags = (baseGeneralTags + newGeneralTags).distinct()
+            )
+        }
+    }
+
+    fun onApplyFilters(tags: List<String>) = intent {
+        reduce { state.copy(selectedTags = tags) }
+    }
+    fun onToggleTagSelection(tag: String) = intent {
+        val currentSelection = state.selectedTags.toMutableList()
+        val exclusiveGroup = listOf("유사한 사진", "흐린 사진")
+
+        when (tag) {
+            "전체" -> {
+                reduce { state.copy(selectedTags = emptyList()) }
+            }
+
+            // '유사한 사진' 또는 '흐린 사진' 같은 단독 선택 태그를 클릭한 경우
+            in exclusiveGroup -> {
+                // 이미 해당 태그가 단독으로 선택된 상태이면 선택 해제, 아니면 해당 태그만 선택
+                val newSelection = if (currentSelection == listOf(tag)) emptyList() else listOf(tag)
+                reduce { state.copy(selectedTags = newSelection) }
+            }
+
+            // 그 외 다중 선택 가능한 일반 태그를 클릭한 경우
+            else -> {
+                // 기존에 선택된 단독 선택 태그가 있다면 제거
+                currentSelection.removeAll(exclusiveGroup)
+
+                if (currentSelection.contains(tag)) {
+                    currentSelection.remove(tag)
+                } else {
+                    if (currentSelection.size < 5) {
+                        currentSelection.add(tag)
+                    } else {
+                        postSideEffect(GallerySideEffect.ShowToast("필터는 최대 5개까지 선택할 수 있습니다."))
                     }
-                )
+                }
+                reduce { state.copy(selectedTags = currentSelection) }
             }
         }
-
-        reduce { state.copy(isAnalyzing = false) }
-        postSideEffect(GallerySideEffect.ShowToast("${images.size}개 사진 분석 완료!"))
     }
-
-
-    fun onTagSelect(tag: String) = intent {
-        reduce { state.copy(selectedTag = tag, isSelectionMode = false, selectedImageIds = emptyList()) }
-    }
-
     fun onImageClick(imageId: String) = intent {
         if (state.isSelectionMode) {
             val newSelection = state.selectedImageIds.toMutableList()
@@ -177,6 +229,6 @@ class GalleryViewModel @Inject constructor(
     }
 
     fun onAiIconClick() = intent {
-
+        // UI에서 직접 처리하므로 ViewModel의 역할은 없음
     }
 }

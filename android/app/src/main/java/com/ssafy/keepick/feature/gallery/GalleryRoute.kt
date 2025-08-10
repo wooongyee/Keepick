@@ -15,6 +15,7 @@ fun GalleryRoute(
     onNavigateToCreateAlbum: (List<String>) -> Unit,
     onNavigateToImageDetail: (String) -> Unit,
     onUploadRequest: () -> Unit,
+    onOpenTagFilter: () -> Unit
 ) {
     val state by viewModel.container.stateFlow.collectAsStateWithLifecycle()
 
@@ -30,42 +31,22 @@ fun GalleryRoute(
 
     GalleryScreen(
         images = state.filteredImages,
-        allTags = state.allTags,
-        selectedTag = state.selectedTag,
+        specialAiTags = state.specialAiTags,
+        personTags = state.personTags,
+        generalTags = state.generalTags,
+        selectedTags = state.selectedTags, // 다중 선택 리스트 사용
         isSelectionMode = state.isSelectionMode,
         selectedImageIds = state.selectedImageIds,
         isLoading = state.isLoading,
         isAnalyzing = state.isAnalyzing,
         analysisProgress = state.analysisProgress,
-        analyzedImageCount = state.analyzedImageCount,
-        totalImageCount = state.totalImageCount,
-        onTagSelect = viewModel::onTagSelect,
+        onToggleTagSelection = viewModel::onToggleTagSelection, // 다중 선택 이벤트 핸들러 사용
         onImageClick = viewModel::onImageClick,
         onImageLongClick = viewModel::onImageLongClick,
         onClearSelection = viewModel::onClearSelection,
         onCreateAlbumClick = viewModel::onCreateAlbumClick,
         onDeleteSelectedImages = viewModel::onDeleteSelectedImages,
-        onUploadClick = onUploadRequest,
-    )
-}
-
-@Composable
-private fun AiAnalysisInfoDialog(onDismissRequest: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text("AI 분석 기능 안내") },
-        text = {
-            Text(
-                "Keepick의 AI는 다음과 같은 기능을 제공합니다:\n\n" +
-                    "• 유사한 사진 분류\n" +
-                    "• 흐리게 나온 사진 감지\n" +
-                    "• 사진 속 인물, 풍경, 음식 등 자동 태그"
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text("확인")
-            }
-        }
+        onFilterIconClick = onOpenTagFilter,
+        onUploadClick = onUploadRequest
     )
 }
