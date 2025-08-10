@@ -4,7 +4,7 @@ import com.ssafy.keepick.feature.gallery.model.GalleryImage
 data class GalleryState(
     val groupName: String = "",
     val allImages: List<GalleryImage> = emptyList(),
-    val specialAiTags: List<String> = listOf("유사한 사진", "흐린 사진"),
+    val specialAiTags: List<String> = listOf("흐린 사진"),
     val personTags: List<String> = emptyList(),
     val generalTags: List<String> = listOf("인물", "풍경", "음식", "바다", "산", "도시"),
     val selectedTags: List<String> = emptyList(),

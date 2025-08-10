@@ -20,10 +20,8 @@ fun ImageDetailRoute(
     onNavigateBack: () -> Unit,
     viewModel: ImageDetailViewModel = hiltViewModel() // Hilt를 통해 ViewModel 주입
 ) {
-    // ViewModel로부터 State를 관찰하고 수집합니다.
     val state by viewModel.container.stateFlow.collectAsStateWithLifecycle()
 
-    // 관찰한 State를 stateless한 Screen에 전달합니다.
     ImageDetailScreen(
         sharedTransitionScope = sharedTransitionScope,
         animatedContentScope = animatedContentScope,

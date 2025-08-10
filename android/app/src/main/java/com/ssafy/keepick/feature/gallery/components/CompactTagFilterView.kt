@@ -9,12 +9,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -27,9 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +41,7 @@ fun CompactTagFilterView(
     isShowingOnlySelected: Boolean, // 2. '선택됨' 필터 활성화 상태 추가
     onTagClick: (String) -> Unit,
     onFilterIconClick: () -> Unit,
+    onSimilarPhotosClick: () -> Unit,
     onShowOnlySelectedToggle: (Boolean) -> Unit, // 3. '선택됨' 필터 토글 콜백 추가
 ) {
     val bottomRowTags by remember(personTags, generalTags) {
@@ -95,6 +94,11 @@ fun CompactTagFilterView(
 
             Spacer(Modifier.weight(1f))
 
+            // AI 기능(유사 사진)으로 이동하는 아이콘 버튼 추가
+            IconButton(onClick = onSimilarPhotosClick) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = "유사 사진 분석")
+            }
+
             IconButton(onClick = onFilterIconClick) {
                 Icon(Icons.Default.FilterAlt, contentDescription = "상세 필터 보기")
             }
@@ -112,100 +116,6 @@ fun CompactTagFilterView(
                     label = { Text(tag) }
                 )
             }
-        }
-    }
-}
-/**
- * 1. 기본 상태 미리보기
- * 여러 태그가 선택된 일반적인 경우를 시뮬레이션합니다.
- */
-@Preview(showBackground = true, name = "Default Preview")
-@Composable
-fun CompactTagFilterView_DefaultPreview() {
-    val specialTags = listOf("유사한 사진", "흐린 사진")
-    val personTags = listOf("김민수", "이영희")
-    val generalTags = listOf("풍경", "음식", "바다", "산", "도시")
-    val selectedTags = listOf("풍경", "김민수")
-
-    KeepickTheme {
-        CompactTagFilterView(
-            specialAiTags = specialTags,
-            personTags = personTags,
-            generalTags = generalTags,
-            selectedTags = selectedTags,
-            isSelectionMode = false, // <-- 추가
-            isShowingOnlySelected = false, // <-- 추가
-            onTagClick = {},
-            onFilterIconClick = {},
-            onShowOnlySelectedToggle = {} // <-- 추가
-        )
-    }
-}
-
-/**
- * 2. 선택된 태그가 없는 상태 미리보기
- * '전체' 칩이 활성화된 상태를 확인합니다.
- */
-@Preview(showBackground = true, name = "No Tags Selected Preview")
-@Composable
-fun CompactTagFilterView_NoSelectionPreview() {
-    val specialTags = listOf("유사한 사진", "흐린 사진")
-    val personTags = listOf("김민수", "이영희")
-    val generalTags = listOf("풍경", "음식", "바다", "산", "도시")
-    val selectedTags = emptyList<String>()
-
-    KeepickTheme {
-        CompactTagFilterView(
-            specialAiTags = specialTags,
-            personTags = personTags,
-            generalTags = generalTags,
-            selectedTags = selectedTags,
-            isSelectionMode = false, // <-- 추가
-            isShowingOnlySelected = false, // <-- 추가
-            onTagClick = {},
-            onFilterIconClick = {},
-            onShowOnlySelectedToggle = {} // <-- 추가
-        )
-    }
-}
-
-/**
- * 3. 하단 태그 목록이 비어있는 상태 미리보기
- * 인물 및 일반 태그가 없을 때의 UI를 확인합니다.
- */
-@Preview(showBackground = true, name = "Empty Bottom Row Preview")
-@Composable
-fun CompactTagFilterView_EmptyBottomRowPreview() {
-    val specialTags = listOf("유사한 사진", "흐린 사진")
-    val personTags = emptyList<String>()
-    val generalTags = emptyList<String>()
-    val selectedTags = listOf("유사한 사진")
-
-    KeepickTheme {
-        Column {
-            CompactTagFilterView(
-                specialAiTags = specialTags,
-                personTags = personTags,
-                generalTags = generalTags,
-                selectedTags = selectedTags,
-                isSelectionMode = false, // <-- 추가
-                isShowingOnlySelected = false, // <-- 추가
-                onTagClick = {},
-                onFilterIconClick = {},
-                onShowOnlySelectedToggle = {} // <-- 추가
-            )
-            Spacer(Modifier.height(20.dp))
-            CompactTagFilterView(
-                specialAiTags = specialTags,
-                personTags = personTags,
-                generalTags = generalTags,
-                selectedTags = emptyList(),
-                isSelectionMode = false, // <-- 추가
-                isShowingOnlySelected = false, // <-- 추가
-                onTagClick = {},
-                onFilterIconClick = {},
-                onShowOnlySelectedToggle = {} // <-- 추가
-            )
         }
     }
 }

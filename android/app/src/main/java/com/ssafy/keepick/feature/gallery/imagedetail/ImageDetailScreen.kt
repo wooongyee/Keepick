@@ -11,6 +11,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -26,13 +27,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
@@ -46,10 +50,17 @@ fun ImageDetailScreen(
     state: ImageDetailState,
     onNavigateBack: () -> Unit
 ) {
-
-    val pagerState = rememberPagerState(initialPage = state.initialPage) { state.allImages.size }
+    val pagerState = rememberPagerState { state.allImages.size }
     val thumbnailListState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(state.initialPage, state.allImages.size) {
+        // 데이터 로딩이 완료되고 Pager가 준비되면(allImages.size > 0),
+        // state.initialPage에 저장된 올바른 페이지로 즉시 이동합니다.
+        if (state.allImages.isNotEmpty() && pagerState.currentPage != state.initialPage) {
+            pagerState.scrollToPage(state.initialPage)
+        }
+    }
 
     // 페이저가 스크롤될 때, 썸네일 스트립도 함께 스크롤
     LaunchedEffect(pagerState.currentPage) {
@@ -74,11 +85,22 @@ fun ImageDetailScreen(
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         } else {
             // 메인 이미지 페이저
+            val keyPrefix = remember(state.sharedKey) {
+                state.sharedKey.substringBefore('_', missingDelimiterValue = "")
+            }
+
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { pageIndex ->
                 val image = state.allImages[pageIndex]
+
+                val currentImageSharedKey = if (keyPrefix.isNotEmpty()) {
+                    "${keyPrefix}_${image.id}"
+                } else {
+                    image.id // 만약을 위한 방어 코드
+                }
+
                 with(sharedTransitionScope) {
                     AsyncImage(
                         model = image.imageUrl,
@@ -86,22 +108,36 @@ fun ImageDetailScreen(
                         contentScale = ContentScale.Fit,
                         modifier = Modifier
                             .fillMaxSize()
-                            .sharedElement( // 히어로 애니메이션 적용
-                                state = rememberSharedContentState(key = "image-${image.id}"),
+                            // --- ▼ 핵심 수정 3: Pager의 각 페이지는 고유한 키를 사용해야 함 ---
+                            .sharedElement(
+                                state = rememberSharedContentState(key = currentImageSharedKey),
                                 animatedVisibilityScope = animatedContentScope
                             )
                     )
                 }
             }
-
-            // 상단 '닫기' 버튼
-            IconButton(
-                onClick = onNavigateBack,
+            Row(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(16.dp)
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Close, contentDescription = "닫기", tint = Color.White)
+                IconButton(onClick = onNavigateBack) {
+                    Icon(Icons.Default.Close, contentDescription = "닫기", tint = Color.White)
+                }
+
+                // 클러스터 제목이 있을 경우 표시
+                state.clusterTitle?.let { title ->
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
             }
 
             // 하단 썸네일 스트립

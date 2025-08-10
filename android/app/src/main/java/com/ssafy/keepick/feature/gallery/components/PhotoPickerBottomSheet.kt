@@ -49,6 +49,7 @@ fun PhotoPickerBottomSheet(
                     GalleryImage(id = uri.toString(), imageUrl = uri.toString(), "", emptyList(), ImageStatus.COMPLETE)
                 }
                 GalleryImageItem(
+                    keyPrefix = "picker",
                     image = dummyImage,
                     isSelected = uri in selectedImageUris,
                     onClick = {

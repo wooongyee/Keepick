@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.CloudUpload
@@ -35,15 +34,16 @@ import com.ssafy.keepick.feature.gallery.model.ImageStatus
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun GalleryImageItem(
+    keyPrefix : String,
     modifier: Modifier = Modifier,
     image: GalleryImage,
     isSelected: Boolean,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
-    // --- 핵심 수정 사항: 애니메이션 스코프를 Nullable로 만들어 선택적으로 받도록 변경 ---
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    val uniqueKey = "${keyPrefix}_${image.id}"
     Box(
         modifier = modifier
             .aspectRatio(1f)
@@ -60,7 +60,7 @@ fun GalleryImageItem(
                 Modifier
                     .fillMaxSize()
                     .sharedElement(
-                        state = rememberSharedContentState(key = "image-${image.id}"),
+                        state = rememberSharedContentState(key = uniqueKey),
                         animatedVisibilityScope = animatedVisibilityScope
                     )
             }

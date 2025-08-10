@@ -56,7 +56,7 @@ fun TagFilterSheetContent(
     val selectedTags = remember { mutableStateListOf<String>().apply { addAll(initialSelectedTags) } }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
-    val exclusiveGroup = listOf("유사한 사진", "흐린 사진")
+    val exclusiveGroup = listOf("흐린 사진")
 
     // --- 핵심 수정 사항: ViewModel과 동일한 선택 로직을 여기에 구현 ---
     val onTagClick: (String) -> Unit = { tag ->

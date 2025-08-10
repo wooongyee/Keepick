@@ -17,7 +17,8 @@ fun GalleryRoute(
     viewModel: GalleryViewModel,
     onNavigateToTierMaker: (String) -> Unit,
     onNavigateToTimelineAlbum: (String) -> Unit,
-    onNavigateToImageDetail: (String) -> Unit,
+    onNavigateToImageDetail: (sharedKey : String,imageId: String, clusterId: String?) -> Unit,
+    onNavigateToSimilarPhotos: () -> Unit,
     onUploadRequest: () -> Unit,
     onOpenTagFilter: () -> Unit
 ) {
@@ -25,10 +26,12 @@ fun GalleryRoute(
 
     viewModel.collectSideEffect { sideEffect ->
         when (sideEffect) {
-            // 변경된 SideEffect 이름에 맞게 처리
             is GallerySideEffect.NavigateToTierMaker -> onNavigateToTierMaker(sideEffect.newAlbumId)
             is GallerySideEffect.NavigateToTimelineAlbum -> onNavigateToTimelineAlbum(sideEffect.newAlbumId)
-            is GallerySideEffect.NavigateToImageDetail -> onNavigateToImageDetail(sideEffect.imageId)
+            is GallerySideEffect.NavigateToImageDetail -> {
+                val sharedKey = "gallery_${sideEffect.imageId}"
+                onNavigateToImageDetail(sharedKey,sideEffect.imageId, null)
+            }
             is GallerySideEffect.ShowToast -> { /* ... */ }
         }
     }
@@ -50,6 +53,7 @@ fun GalleryRoute(
         onToggleTagSelection = viewModel::onToggleTagSelection, // 다중 선택 이벤트 핸들러 사용
         onToggleImageSelection = viewModel::onToggleImageSelection, // ViewModel의 함수 연결
         onNavigateToImageDetail = onNavigateToImageDetail, // 상위로부터 받은 내비게이션 콜백 연결
+        onNavigateToSimilarPhotos = onNavigateToSimilarPhotos,
         onImageLongClick = viewModel::onImageLongClick,
         onDeselectAll = viewModel::onDeselectAll,
         onClearSelection = viewModel::onClearSelection,

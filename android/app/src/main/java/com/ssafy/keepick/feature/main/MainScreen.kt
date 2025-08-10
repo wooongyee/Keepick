@@ -38,6 +38,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.ssafy.keepick.app.navigation.BottomNavItem
+import com.ssafy.keepick.app.navigation.NavRoute
 import com.ssafy.keepick.core.ui.RequestStoragePermissionOnStart
 import com.ssafy.keepick.core.ui.rememberLocalImages
 import com.ssafy.keepick.feature.gallery.GalleryRoute
@@ -46,6 +47,7 @@ import com.ssafy.keepick.feature.gallery.components.AiAnalysisInfoMenu
 import com.ssafy.keepick.feature.gallery.components.GalleryTopBar
 import com.ssafy.keepick.feature.gallery.components.PhotoPickerBottomSheet
 import com.ssafy.keepick.feature.gallery.components.TagFilterSheetContent
+import com.ssafy.keepick.feature.gallery.similarphotos.SimilarPhotosRoute
 import com.ssafy.keepick.feature.group.GroupRoute
 import com.ssafy.keepick.feature.group.components.GroupDropdownMenu
 import com.ssafy.keepick.feature.group.components.GroupTopBar
@@ -65,7 +67,7 @@ fun MainScreen(
     onNavigateToTierAlbum: (String) -> Unit,
     onNavigateToTimelineAlbum: (String) -> Unit,
     onNavigateToTierMaker: (String) -> Unit,
-    onNavigateToImageDetail: (String) -> Unit,
+    onNavigateToImageDetail: (sharedKey: String, imageId: String, clusterId: String?) -> Unit,
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -135,7 +137,7 @@ fun MainScreen(
                         onSettingsClick = { /* TODO: 설정 화면 이동 */ }
                     )
                 }
-                BottomNavItem.Gallery.route -> {
+                BottomNavItem.Gallery.route, NavRoute.SimilarPhotos.route -> {
                     GalleryTopBar(
                         groupName = currentGroupName,
                         onGroupSelectClick = { isMenuExpanded = !isMenuExpanded },
@@ -148,8 +150,20 @@ fun MainScreen(
         bottomBar = {
             NavigationBar(containerColor = Color.White) {
                 bottomNavItems.forEach { screen ->
+                    // '갤러리' 탭일 경우 현재 경로가 갤러리 탭 또는 유사한 사진 경로 중 하나라도 해당되면 선택된 것으로 처리
+                    val isSelected = when (screen.route) {
+                        BottomNavItem.Gallery.route -> {
+                            currentDestination?.hierarchy?.any {
+                                it.route == BottomNavItem.Gallery.route || it.route == NavRoute.SimilarPhotos.route
+                            } == true
+                        }
+                        else -> {
+                            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                        }
+                    }
+
                     NavigationBarItem(
-                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        selected = isSelected, // 수정된 로직을 적용
                         onClick = {
                             bottomNavController.navigate(screen.route) {
                                 popUpTo(bottomNavController.graph.findStartDestination().id) {
@@ -203,14 +217,26 @@ fun MainScreen(
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope,
                         viewModel = galleryViewModel,
-                        // 갤러리에서는 '만들기' 기능이 필요
                         onNavigateToTierMaker = onNavigateToTierMaker, // TierMaker로 감
                         onNavigateToTimelineAlbum = onNavigateToTimelineAlbum, // TimelineAlbum으로 감
                         onNavigateToImageDetail = onNavigateToImageDetail,
+                        onNavigateToSimilarPhotos = {
+                            bottomNavController.navigate(NavRoute.SimilarPhotos.route)
+                        },
                         onUploadRequest = { showPhotoPickerSheet = true },
                         onOpenTagFilter = { showTagFilterSheet = true }
                     )
                 }
+
+                composable(route = NavRoute.SimilarPhotos.route) {
+                    SimilarPhotosRoute(
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        onNavigateToImageDetail = onNavigateToImageDetail,
+                        onNavigateBack = { bottomNavController.popBackStack() }
+                    )
+                }
+
                 composable(route = BottomNavItem.MyPage.route) {
                     MyPageRoute(
                         onNavigateToLogin = onNavigateToLogin,

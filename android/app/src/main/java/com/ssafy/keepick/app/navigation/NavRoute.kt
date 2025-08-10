@@ -37,10 +37,17 @@ sealed class NavRoute(val route: String) {
         const val ALBUM_ID_ARG = "albumId"
         fun createRoute(albumId: String) = "timelineAlbum/$albumId"
     }
-    data object ImageDetail : NavRoute("imageDetail/{imageId}") {
+    object ImageDetail : NavRoute("image_detail/{sharedKey}/{imageId}?clusterId={clusterId}") {
+        const val SHARED_KEY_ARG = "sharedKey"
         const val IMAGE_ID_ARG = "imageId"
-        fun createRoute(imageId: String) = "imageDetail/$imageId"
+        const val CLUSTER_ID_ARG = "clusterId"
+
+        fun createRoute(sharedKey: String, imageId: String, clusterId: String?): String {
+            val baseRoute = "image_detail/$sharedKey/$imageId"
+            return if (clusterId != null) "$baseRoute?clusterId=$clusterId" else baseRoute
+        }
     }
+    data object SimilarPhotos : NavRoute("similarPhotos")
 }
 
 sealed class BottomNavItem(

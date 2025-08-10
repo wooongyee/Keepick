@@ -11,9 +11,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.navigation.navDeepLink
 import com.ssafy.keepick.core.util.AppConstants
 import com.ssafy.keepick.feature.gallery.imagedetail.ImageDetailRoute
@@ -71,8 +73,8 @@ fun KeepickNavHost(
                 NavHost(
                     navController = navController,
                     startDestination =
-//                    NavRoute.Main.route
-                        startDestination
+                    NavRoute.Main.route
+//                        startDestination
                 ) {
                     composable(NavRoute.Login.route) {
                         LoginRoute(
@@ -103,9 +105,11 @@ fun KeepickNavHost(
                             onNavigateToTierMaker = { albumId ->
                                 navController.navigate(NavRoute.TierMaker.createRoute(albumId))
                             },
-                            onNavigateToImageDetail = { imageId ->
-                                navController.navigate(NavRoute.ImageDetail.createRoute(imageId))
-                            }
+                            onNavigateToImageDetail = { sharedKey, imageId, clusterId ->
+                                navController.navigate(
+                                    NavRoute.ImageDetail.createRoute(sharedKey, imageId, clusterId)
+                                )
+                            },
                         )
                     }
 
@@ -157,7 +161,17 @@ fun KeepickNavHost(
                             onNavigateBack = { navController.popBackStack() },
                         )
                     }
-                    composable(route = NavRoute.ImageDetail.route) {
+                    composable(
+                        route = NavRoute.ImageDetail.route,
+                        arguments = listOf(
+                            navArgument(NavRoute.ImageDetail.IMAGE_ID_ARG) { type = NavType.StringType },
+                            // clusterId는 null일 수 있는 선택적 인자
+                            navArgument(NavRoute.ImageDetail.CLUSTER_ID_ARG) {
+                                type = NavType.StringType
+                                nullable = true
+                            }
+                        )
+                    ) {
                         ImageDetailRoute(
                             sharedTransitionScope = this@SharedTransitionLayout,
                             animatedContentScope = this,

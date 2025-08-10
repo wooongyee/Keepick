@@ -73,7 +73,8 @@ fun GalleryScreen(
     analysisProgress: Float,
     onToggleTagSelection: (String) -> Unit, // <- 다중 선택 핸들러만 남김
     onToggleImageSelection: (String) -> Unit, // 이름 변경: onImageClick -> onToggleImageSelection
-    onNavigateToImageDetail: (String) -> Unit,
+    onNavigateToImageDetail: (sharedKey : String, imageId: String, clusterId: String?) -> Unit,
+    onNavigateToSimilarPhotos: () -> Unit,
     onImageLongClick: (String) -> Unit,
     onClearSelection: () -> Unit,
     onDeselectAll: () -> Unit,
@@ -121,7 +122,8 @@ fun GalleryScreen(
                     isShowingOnlySelected = isShowingOnlySelected,
                     onTagClick = onToggleTagSelection,
                     onFilterIconClick = onFilterIconClick,
-                    onShowOnlySelectedToggle = { isShowingOnlySelected = it }
+                    onSimilarPhotosClick = onNavigateToSimilarPhotos,
+                    onShowOnlySelectedToggle = { isShowingOnlySelected = it },
                 )
 
                 LazyVerticalGrid(
@@ -134,6 +136,7 @@ fun GalleryScreen(
                     // 4. 필터링된 최종 이미지 목록을 그리드에 전달
                     items(displayedImages, key = { it.id }) { image ->
                         GalleryImageItem(
+                            keyPrefix = "gallery",
                             sharedTransitionScope = sharedTransitionScope,
                             animatedVisibilityScope = animatedVisibilityScope,
                             image = image,
@@ -144,7 +147,7 @@ fun GalleryScreen(
                                     onToggleImageSelection(image.id)
                                 } else {
                                     // 선택 모드가 아닐 때는 내비게이션 콜백 호출
-                                    onNavigateToImageDetail(image.id)
+                                    onNavigateToImageDetail("gallery_${image.id}", image.id, null)
                                 }
                             },
                             onLongClick = { onImageLongClick(image.id) }
