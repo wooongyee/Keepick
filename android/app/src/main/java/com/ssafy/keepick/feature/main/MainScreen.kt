@@ -68,6 +68,7 @@ fun MainScreen(
     onNavigateToTimelineAlbum: (String) -> Unit,
     onNavigateToTierMaker: (String) -> Unit,
     onNavigateToImageDetail: (sharedKey: String, imageId: String, clusterId: String?) -> Unit,
+    onNavigateToHighlightAlbum : (String) -> Unit,
 ) {
     val bottomNavController = rememberNavController()
     val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
@@ -207,9 +208,9 @@ fun MainScreen(
                 composable(route = BottomNavItem.Home.route) { HomeRoute() }
                 composable(route = BottomNavItem.Group.route) {
                     GroupRoute(
-                        // 그룹 화면에서는 '보기' 기능만 필요
-                        onNavigateToTierMaker = onNavigateToTierAlbum, // 이름이 TierAlbum인 곳으로 감
-                        onNavigateToTimelineAlbum = onNavigateToTimelineAlbum
+                        onNavigateToTierMaker = onNavigateToTierAlbum,
+                        onNavigateToTimelineAlbum = onNavigateToTimelineAlbum,
+                        onNavigateToHighlightAlbum = onNavigateToHighlightAlbum
                     )
                 }
                 composable(

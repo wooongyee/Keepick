@@ -11,6 +11,7 @@ import com.ssafy.keepick.R
 fun GroupRoute(
     onNavigateToTierMaker : (albumId: String) -> Unit,
     onNavigateToTimelineAlbum : (String) -> Unit,
+    onNavigateToHighlightAlbum: (String) -> Unit,
 ) {
     val context = LocalContext.current
 
@@ -62,7 +63,7 @@ fun GroupRoute(
         onTierAlbumClick = {
             onNavigateToTierMaker(it)
         },
-        onHighlightAlbumClick = { /*TODO*/ },
+        onHighlightAlbumClick = { onNavigateToHighlightAlbum(it)},
         onAddClick = { /*TODO*/ },
         onVideoClick = { /*TODO*/ }
     )

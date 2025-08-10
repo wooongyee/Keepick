@@ -48,6 +48,20 @@ sealed class NavRoute(val route: String) {
         }
     }
     data object SimilarPhotos : NavRoute("similarPhotos")
+
+
+    // 하이라이트 앨범 메인 경로
+    data object HighlightAlbum : NavRoute("highlightAlbum/{albumId}") {
+        const val ALBUM_ID_ARG = "albumId"
+        fun createRoute(albumId: String) = "highlightAlbum/$albumId"
+    }
+    data object EmotionDetail : NavRoute("emotionDetail/{albumId}/{albumTitle}/{emotionId}") {
+        const val ALBUM_ID_ARG = "albumId"
+        const val ALBUM_TITLE_ARG = "albumTitle" // title을 위한 상수 추가
+        const val EMOTION_ID_ARG = "emotionId"
+        // [수정] createRoute 함수에 albumTitle 파라미터 추가
+        fun createRoute(albumId: String, albumTitle: String, emotionId: String) = "emotionDetail/$albumId/$albumTitle/$emotionId"
+    }
 }
 
 sealed class BottomNavItem(

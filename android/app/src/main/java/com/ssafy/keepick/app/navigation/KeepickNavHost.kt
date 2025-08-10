@@ -26,6 +26,8 @@ import com.ssafy.keepick.feature.groupchat.GroupChatScreen
 import com.ssafy.keepick.feature.groupchat.GroupChatSideEffect
 import com.ssafy.keepick.feature.groupchat.GroupChatViewModel
 import com.ssafy.keepick.feature.groupchat.LocalGroupChatViewModel
+import com.ssafy.keepick.feature.highlight.album.HighlightAlbumRoute
+import com.ssafy.keepick.feature.highlight.emotion.EmotionDetailRoute
 import com.ssafy.keepick.feature.invite.InviteRoute
 import com.ssafy.keepick.feature.login.LoginRoute
 import com.ssafy.keepick.feature.main.MainScreen
@@ -113,6 +115,9 @@ fun KeepickNavHost(
                                     NavRoute.ImageDetail.createRoute(sharedKey, imageId, clusterId)
                                 )
                             },
+                            onNavigateToHighlightAlbum = { albumId ->
+                                navController.navigate(NavRoute.HighlightAlbum.createRoute(albumId))
+                            }
                         )
                     }
 
@@ -195,6 +200,33 @@ fun KeepickNavHost(
                             onNavigateBack = { navController.popBackStack() }
                         )
                     }
+
+                    composable(route = NavRoute.HighlightAlbum.route) { backStackEntry ->
+                        val albumId = backStackEntry.arguments?.getString(NavRoute.HighlightAlbum.ALBUM_ID_ARG)
+                        HighlightAlbumRoute(
+                            albumId = albumId ?: "unknown",
+                            onNavigateBack = { navController.popBackStack() },
+                            onNavigateToEmotionDetail = { finalAlbumId, albumTitle, emotionId ->
+                                navController.navigate(
+                                    NavRoute.EmotionDetail.createRoute(finalAlbumId, albumTitle, emotionId)
+                                )
+                            }
+                        )
+                    }
+
+                    composable(route = NavRoute.EmotionDetail.route) { backStackEntry ->
+                        val albumId = backStackEntry.arguments?.getString(NavRoute.EmotionDetail.ALBUM_ID_ARG)
+                        val albumTitle = backStackEntry.arguments?.getString(NavRoute.EmotionDetail.ALBUM_TITLE_ARG)
+                        val emotionId = backStackEntry.arguments?.getString(NavRoute.EmotionDetail.EMOTION_ID_ARG)
+
+                        EmotionDetailRoute(
+                            albumId = albumId ?: "unknown",
+                            albumTitle = albumTitle ?: "앨범 정보 없음", // null일 경우 기본값
+                            emotionId = emotionId ?: "unknown",
+                            onNavigateBack = { navController.popBackStack() }
+                        )
+                    }
+
 
                 }
                 GroupChatScreen()
