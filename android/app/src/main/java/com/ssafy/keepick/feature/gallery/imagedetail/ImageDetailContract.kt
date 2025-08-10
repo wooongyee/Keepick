@@ -6,7 +6,8 @@ data class ImageDetailState(
     val isLoading: Boolean = true,
     val initialImageId: String = "",
     val allImages: List<GalleryImage> = emptyList(),
-    val initialPage: Int = 0,
+    val initialPage: Int? = null,
     val clusterTitle: String? = null,
-    val sharedKey: String = ""
+    val sharedKey: String = "",
+    val currentVisibleImageId: String? = null
 )

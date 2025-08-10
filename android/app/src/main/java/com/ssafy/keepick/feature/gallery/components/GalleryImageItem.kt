@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.ssafy.keepick.core.ui.flickerFreeTransform
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
 import com.ssafy.keepick.feature.gallery.model.ImageStatus
 
@@ -38,45 +39,39 @@ fun GalleryImageItem(
     modifier: Modifier = Modifier,
     image: GalleryImage,
     isSelected: Boolean,
-    onClick: () -> Unit,
+    onClick: (sharedKey: String) -> Unit,
     onLongClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    sharedTransitionScope: SharedTransitionScope, // 이제 Non-null로 가정
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val uniqueKey = "${keyPrefix}_${image.id}"
-    Box(
-        modifier = modifier
-            .aspectRatio(1f)
-            .clip(MaterialTheme.shapes.small)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
+
+    with(sharedTransitionScope) {
+        Box(
+            // ▼ 핵심 수정 2: Box에 sharedBounds와 combinedClickable 적용
+            modifier = modifier
+                .aspectRatio(1f)
+                .sharedElement(
+                    rememberSharedContentState(key = uniqueKey),
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    boundsTransform = flickerFreeTransform
+                )
+                .clip(MaterialTheme.shapes.small)
+                .combinedClickable(
+                    // ▼ 핵심 수정 3: 클릭 시, 생성된 uniqueKey를 전달
+                    onClick = { onClick(uniqueKey) },
+                    onLongClick = onLongClick
+                )
+        ) {
+            AsyncImage(
+                model = image.imageUrl,
+                contentDescription = "갤러리 이미지",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
-    ) {
-        // --- 히어로 애니메이션 적용을 조건부로 처리 ---
-        val imageModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-            // 스코프가 제공된 경우에만 sharedElement 적용
-            with(sharedTransitionScope) {
-                Modifier
-                    .fillMaxSize()
-                    .sharedElement(
-                        state = rememberSharedContentState(key = uniqueKey),
-                        animatedVisibilityScope = animatedVisibilityScope
-                    )
-            }
-        } else {
-            // 스코프가 없으면 기본 Modifier 사용
-            Modifier.fillMaxSize()
         }
 
-        AsyncImage(
-            model = image.imageUrl,
-            contentDescription = "갤러리 이미지",
-            contentScale = ContentScale.Crop,
-            modifier = imageModifier
-        )
-
-        // 이미지 상태(업로드 중, 분석 중) 오버레이
+            // 이미지 상태(업로드 중, 분석 중) 오버레이
         when (image.status) {
             ImageStatus.UPLOADING, ImageStatus.ANALYZING -> {
                 Box(
@@ -88,7 +83,9 @@ fun GalleryImageItem(
                     CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                 }
             }
-            else -> { /* COMPLETE 상태에서는 아무것도 표시하지 않음 */ }
+
+            else -> { /* COMPLETE 상태에서는 아무것도 표시하지 않음 */
+            }
         }
 
         // 선택됨 오버레이

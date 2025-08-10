@@ -212,7 +212,9 @@ fun MainScreen(
                         onNavigateToTimelineAlbum = onNavigateToTimelineAlbum
                     )
                 }
-                composable(route = BottomNavItem.Gallery.route) {
+                composable(
+                    route = BottomNavItem.Gallery.route
+                ) {
                     GalleryRoute(
                         sharedTransitionScope = sharedTransitionScope,
                         animatedVisibilityScope = animatedVisibilityScope,

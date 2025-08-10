@@ -141,16 +141,16 @@ fun GalleryScreen(
                             animatedVisibilityScope = animatedVisibilityScope,
                             image = image,
                             isSelected = image.id in selectedImageIds,
-                            onClick = {
+                            onClick = { sharedKey ->
                                 if (isSelectionMode) {
                                     // 선택 모드일 때는 ViewModel의 선택 토글 함수 호출
                                     onToggleImageSelection(image.id)
                                 } else {
                                     // 선택 모드가 아닐 때는 내비게이션 콜백 호출
-                                    onNavigateToImageDetail("gallery_${image.id}", image.id, null)
+                                    onNavigateToImageDetail(sharedKey, image.id, null)
                                 }
                             },
-                            onLongClick = { onImageLongClick(image.id) }
+                            onLongClick = { onImageLongClick(image.id) },
                         )
                     }
                 }

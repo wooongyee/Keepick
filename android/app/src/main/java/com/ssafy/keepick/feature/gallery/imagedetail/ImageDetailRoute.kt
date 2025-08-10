@@ -18,7 +18,7 @@ fun ImageDetailRoute(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedVisibilityScope,
     onNavigateBack: () -> Unit,
-    viewModel: ImageDetailViewModel = hiltViewModel() // Hilt를 통해 ViewModel 주입
+    viewModel: ImageDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.container.stateFlow.collectAsStateWithLifecycle()
 
@@ -26,6 +26,7 @@ fun ImageDetailRoute(
         sharedTransitionScope = sharedTransitionScope,
         animatedContentScope = animatedContentScope,
         state = state,
-        onNavigateBack = onNavigateBack
+        onNavigateBack = onNavigateBack,
+        onPageChanged = viewModel::onPageChanged
     )
 }

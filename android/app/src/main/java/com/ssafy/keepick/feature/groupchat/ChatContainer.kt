@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.ssafy.keepick.core.ui.halfStartTransform_150
 
 @Composable
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -57,15 +58,17 @@ fun ChatContainer(
         label = "cornerRadiusAnimation"
     )
 
+
     with(sharedTransitionScope) {
         Box(
             modifier = modifier
-                .clip(RoundedCornerShape(animatedCornerRadius))
-                .sharedBounds(
+                .sharedElement(
                     rememberSharedContentState(key = "container-bounds"),
                     animatedVisibilityScope = animatedContentScope,
-                    boundsTransform = boundsTransform
+                    boundsTransform = halfStartTransform_150,
+
                 )
+                .clip(RoundedCornerShape(animatedCornerRadius))
                 .background(Color(0xFF1C1C1E))
         ) {
             if (isFullScreen) {
@@ -171,7 +174,7 @@ private fun SharedTransitionScope.FullscreenChatContent(
                 .sharedElement(
                     state = rememberSharedContentState(key = "groupchat-controls"),
                     animatedVisibilityScope = animatedContentScope,
-                    boundsTransform = boundsTransform
+                    boundsTransform = halfStartTransform_150
                 )
         ) {
             GroupChatControlSheet(
@@ -236,7 +239,7 @@ private fun SharedTransitionScope.FloatingChatContent(
                 .sharedElement(
                     rememberSharedContentState(key = "groupchat-controls"),
                     animatedVisibilityScope = animatedContentScope,
-                    boundsTransform = boundsTransform
+                    boundsTransform = halfStartTransform_150
                 )
         )
     }

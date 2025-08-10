@@ -1,3 +1,4 @@
+// In file: ImageDetailScreen.kt
 package com.ssafy.keepick.feature.gallery.imagedetail
 
 import androidx.compose.animation.AnimatedVisibility
@@ -30,17 +31,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.ssafy.keepick.core.ui.detailScreenTransform
 import com.ssafy.keepick.feature.gallery.model.GalleryImage
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -48,74 +60,111 @@ fun ImageDetailScreen(
     sharedTransitionScope: SharedTransitionScope,
     animatedContentScope: AnimatedVisibilityScope,
     state: ImageDetailState,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onPageChanged: (Int) -> Unit
 ) {
-    val pagerState = rememberPagerState { state.allImages.size }
-    val thumbnailListState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-
-    LaunchedEffect(state.initialPage, state.allImages.size) {
-        // 데이터 로딩이 완료되고 Pager가 준비되면(allImages.size > 0),
-        // state.initialPage에 저장된 올바른 페이지로 즉시 이동합니다.
-        if (state.allImages.isNotEmpty() && pagerState.currentPage != state.initialPage) {
-            pagerState.scrollToPage(state.initialPage)
-        }
-    }
-
-    // 페이저가 스크롤될 때, 썸네일 스트립도 함께 스크롤
-    LaunchedEffect(pagerState.currentPage) {
-        val targetIndex = pagerState.currentPage
-        if (targetIndex >= 0 && thumbnailListState.layoutInfo.totalItemsCount > 0) {
-            val visibleItems = thumbnailListState.layoutInfo.visibleItemsInfo
-            if (visibleItems.isNotEmpty()) {
-                val isVisible = visibleItems.any { it.index == targetIndex }
-                if (!isVisible) {
-                    thumbnailListState.animateScrollToItem(index = targetIndex)
-                }
-            }
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        if (state.isLoading) {
+        if (state.isLoading || state.initialPage == null) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         } else {
-            // 메인 이미지 페이저
-            val keyPrefix = remember(state.sharedKey) {
-                state.sharedKey.substringBefore('_', missingDelimiterValue = "")
-            }
+            val pagerState = rememberPagerState(initialPage = state.initialPage) { state.allImages.size }
+            val thumbnailListState = rememberLazyListState()
+            val coroutineScope = rememberCoroutineScope()
+            var isReadyForInteraction by remember { mutableStateOf(false) }
+            val density = LocalDensity.current
 
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize()
-            ) { pageIndex ->
-                val image = state.allImages[pageIndex]
+            // ▼ --- 핵심 수정 1: '초기화'와 '상호작용' 로직을 분리 --- ▼
 
-                val currentImageSharedKey = if (keyPrefix.isNotEmpty()) {
-                    "${keyPrefix}_${image.id}"
-                } else {
-                    image.id // 만약을 위한 방어 코드
+            // 1. 초기화 전용 LaunchedEffect: 단 한 번 실행되어 UI를 준비시킵니다.
+            LaunchedEffect(Unit) {
+                // Pager가 초기 페이지에 완전히 자리 잡을 때까지 대기
+                snapshotFlow { pagerState.isScrollInProgress }
+                    .filter { !it }
+                    .first()
+
+                // 썸네일 목록을 애니메이션 없이 즉시 중앙으로 배치
+                val viewportWidth = thumbnailListState.layoutInfo.viewportSize.width
+                if (viewportWidth > 0) {
+                    val thumbnailSizePx = with(density) { 64.dp.toPx() }
+                    val centerOffset = (viewportWidth / 2 - thumbnailSizePx / 2).toInt()
+                    thumbnailListState.scrollToItem(pagerState.currentPage, -centerOffset)
                 }
 
-                with(sharedTransitionScope) {
+                // 모든 준비가 끝나면 상호작용을 허용
+                isReadyForInteraction = true
+            }
+
+            // 2. 상호작용 전용 LaunchedEffect: 초기화 완료 후 모든 실시간 상호작용을 처리합니다.
+            LaunchedEffect(isReadyForInteraction) {
+                if (!isReadyForInteraction) return@LaunchedEffect
+
+                // الف. 페이지 변경 시 ViewModel에 상태 업데이트 요청
+                snapshotFlow { pagerState.currentPage }
+                    .distinctUntilChanged()
+                    .collect { page ->
+                        onPageChanged(page)
+                    }
+            }
+
+            LaunchedEffect(isReadyForInteraction) {
+                if (!isReadyForInteraction) return@LaunchedEffect
+
+                // ب. Pager 스크롤과 썸네일 스크롤을 실시간으로 동기화
+                snapshotFlow { pagerState.currentPage to pagerState.currentPageOffsetFraction }
+                    .collect { (page, offset) ->
+                        val viewportWidth = thumbnailListState.layoutInfo.viewportSize.width
+                        if (viewportWidth > 0) {
+                            val thumbnailSizePx = with(density) { 64.dp.toPx() }
+                            val spacingPx = with(density) { 8.dp.toPx() }
+                            val itemWidthPx = thumbnailSizePx + spacingPx
+                            val centerOffset = (viewportWidth / 2 - thumbnailSizePx / 2).toInt()
+                            val scrollAmount = (offset * itemWidthPx).roundToInt()
+                            thumbnailListState.scrollToItem(page, -centerOffset + scrollAmount)
+                        }
+                    }
+            }
+
+            with(sharedTransitionScope) {
+                // ▼ 핵심 수정 2: ViewModel이 내려준 state를 사용하여 동적 키 생성
+                val dynamicSharedKey by remember(state.sharedKey, state.currentVisibleImageId) {
+                    derivedStateOf {
+                        val keyPrefix = state.sharedKey.substringBeforeLast('_', "")
+                        val currentImageId = state.currentVisibleImageId // ViewModel이 제공하는 ID 사용
+
+                        if (!keyPrefix.isNullOrEmpty() && !currentImageId.isNullOrEmpty()) {
+                            "${keyPrefix}_${currentImageId}"
+                        } else {
+                            state.sharedKey // Fallback
+                        }
+                    }
+                }
+
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .sharedElement(
+                            rememberSharedContentState(key = dynamicSharedKey),
+                            animatedVisibilityScope = animatedContentScope,
+                            boundsTransform = detailScreenTransform,
+                        )
+                    ,
+                    userScrollEnabled = isReadyForInteraction
+                ) { pageIndex ->
+                    val image = state.allImages[pageIndex]
                     AsyncImage(
                         model = image.imageUrl,
                         contentDescription = "상세 이미지",
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            // --- ▼ 핵심 수정 3: Pager의 각 페이지는 고유한 키를 사용해야 함 ---
-                            .sharedElement(
-                                state = rememberSharedContentState(key = currentImageSharedKey),
-                                animatedVisibilityScope = animatedContentScope
-                            )
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
             }
+
             Row(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -124,11 +173,15 @@ fun ImageDetailScreen(
                     .padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onNavigateBack) {
+                IconButton(onClick = {
+                    // ▼ 복구: 썸네일 스크롤 중에도 뒤로가기 방지
+                    if (!pagerState.isScrollInProgress && !thumbnailListState.isScrollInProgress) {
+                        onNavigateBack()
+                    }
+                }) {
                     Icon(Icons.Default.Close, contentDescription = "닫기", tint = Color.White)
                 }
 
-                // 클러스터 제목이 있을 경우 표시
                 state.clusterTitle?.let { title ->
                     Text(
                         text = title,
@@ -140,7 +193,6 @@ fun ImageDetailScreen(
                 }
             }
 
-            // 하단 썸네일 스트립
             AnimatedVisibility(
                 visible = state.allImages.isNotEmpty(),
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -153,15 +205,18 @@ fun ImageDetailScreen(
                         .fillMaxWidth()
                         .background(Color.Black.copy(alpha = 0.5f))
                         .padding(vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    userScrollEnabled = isReadyForInteraction
                 ) {
                     itemsIndexed(state.allImages, key = { _, item -> item.id }) { index, image ->
                         ThumbnailItem(
                             image = image,
                             isSelected = (pagerState.currentPage == index),
                             onClick = {
-                                coroutineScope.launch {
-                                    pagerState.animateScrollToPage(index)
+                                if (isReadyForInteraction) {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(index)
+                                    }
                                 }
                             }
                         )

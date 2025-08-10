@@ -43,22 +43,33 @@ class ImageDetailViewModel @Inject constructor(
         }
     }
 
+    fun onPageChanged(pageIndex: Int) = intent {
+        val imageId = state.allImages.getOrNull(pageIndex)?.id
+        if (imageId != null) {
+            reduce {
+                state.copy(currentVisibleImageId = imageId)
+            }
+        }
+    }
     private fun loadAllImages(initialImageId: String) {
         imageRepository.images
             .onEach { images ->
                 if (images.isNotEmpty()) {
-                    // --- ▼ 핵심: 여기서 정확한 인덱스를 계산합니다 ▼ ---
                     val initialIndex = images.indexOfFirst { it.id == initialImageId }.coerceAtLeast(0)
                     intent {
                         reduce {
+                            // isLoading, allImages, initialPage를 한 번에 업데이트
                             state.copy(
                                 isLoading = false,
                                 allImages = images,
-                                initialPage = initialIndex, // 계산된 인덱스로 State 업데이트
+                                initialPage = initialIndex,
+                                currentVisibleImageId = initialImageId,
                                 clusterTitle = null
                             )
                         }
                     }
+                } else {
+                    intent { reduce { state.copy(isLoading = false, allImages = emptyList()) } }
                 }
             }.launchIn(viewModelScope)
     }
@@ -69,7 +80,6 @@ class ImageDetailViewModel @Inject constructor(
                 val targetCluster = clusters?.find { it.id == clusterId }
                 if (targetCluster != null) {
                     val imagesInCluster = targetCluster.images
-                    // --- ▼ 핵심: 여기서 정확한 인덱스를 계산합니다 ▼ ---
                     val initialIndex = imagesInCluster.indexOfFirst { it.id == initialImageId }.coerceAtLeast(0)
                     val clusterIndex = clusters.indexOfFirst { it.id == clusterId }
                     intent {
@@ -77,7 +87,8 @@ class ImageDetailViewModel @Inject constructor(
                             state.copy(
                                 isLoading = false,
                                 allImages = imagesInCluster,
-                                initialPage = initialIndex, // 계산된 인덱스로 State 업데이트
+                                initialPage = initialIndex,
+                                currentVisibleImageId = initialImageId,
                                 clusterTitle = "유사 사진 그룹 ${clusterIndex + 1}"
                             )
                         }

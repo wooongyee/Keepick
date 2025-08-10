@@ -4,6 +4,9 @@ import android.net.Uri
 import android.util.Log
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -170,7 +173,21 @@ fun KeepickNavHost(
                                 type = NavType.StringType
                                 nullable = true
                             }
-                        )
+                        ),
+                        enterTransition = {
+                            fadeIn(animationSpec = tween(durationMillis = 200))
+                        },
+                        // ▼ --- 핵심 수정: fadeOut을 scaleOut으로 교체 --- ▼
+                        exitTransition = {
+                            fadeOut(animationSpec = tween(durationMillis = 500))
+                        },
+                        popEnterTransition = {
+                            fadeIn(animationSpec = tween(durationMillis = 200))
+                        },
+                        // 일관성을 위해 popExitTransition도 함께 변경
+                        popExitTransition = {
+                            fadeOut(animationSpec = tween(durationMillis = 500))
+                        }
                     ) {
                         ImageDetailRoute(
                             sharedTransitionScope = this@SharedTransitionLayout,
