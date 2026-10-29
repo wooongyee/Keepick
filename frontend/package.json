@@ -6,7 +6,8 @@
     "dev": "node server.js",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:ai-lifecycle": "node --test tests/ai-lifecycle.test.cjs"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

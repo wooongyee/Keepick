@@ -248,9 +248,8 @@ class MediaTrackManager {
     if (track.kind === "video" && trackType === "camera" && enableAI) {
       console.log('🤖 Applying AI processing to video track.');
       // FrontendAiProcessor에 현재 AI 설정 업데이트 (이모지 오버레이, 뷰티 필터 등)
-      frontendAiProcessor.updateConfig(aiConfig || {});
-      
       try {
+        await frontendAiProcessor.updateConfig(aiConfig || {});
         // AI 처리된 트랙을 받아옴 (이모지 등이 합성된 트랙)
         const processedTrack = await frontendAiProcessor.processVideoTrack(track);
         console.log('✅ AI-processed track received. Proceeding to add local track.');
@@ -259,7 +258,7 @@ class MediaTrackManager {
       } catch (aiProcessingError) {
         console.error('❌ Failed to process video track with AI. Falling back to original track:', aiProcessingError);
         // AI 처리 실패 시, AI 없이 원본 트랙을 사용합니다.
-        return await this.addLocalTrack(track, peerId, trackType, peerName);
+        return await this.addLocalTrack(track.clone(), peerId, trackType, peerName);
       }
     } else {
       console.log('🚫 AI processing skipped for this track (not video, not camera, or AI disabled).');
@@ -731,9 +730,6 @@ async replaceLocalTrack(trackId: string, newTrack: MediaStreamTrack): Promise<vo
         // 1. 이전 트랙과 관련된 정보 완전 삭제
         this.localTracks.delete(trackId);
         this.producerMap.delete(oldTrackInfo.producer.id);
-        if (oldTrackInfo.trackType === 'camera') {
-            this.dispatch(removeLocalTrack(oldTrackInfo.kind));
-        }
 
         // 2. 새로운 정보로 새 트랙을 등록 (peerId 안전성 검증 후 등록)
         console.log(`🔄 Replacing track. Old track info:`, { 

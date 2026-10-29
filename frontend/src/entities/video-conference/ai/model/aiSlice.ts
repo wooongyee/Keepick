@@ -5,6 +5,8 @@ import { GestureData, EmotionData, CapturedFrame } from "@/shared/types/ai.types
 
 interface AiState {
   isAiEnabled: boolean;
+  status: "idle" | "loading" | "ready" | "error";
+  error: string | null;
   detectedGestures: GestureData[];
   detectedEmotions: EmotionData[];
   capturedEmotionFrames: CapturedFrame[];
@@ -25,6 +27,8 @@ interface AiState {
 
 const initialState: AiState = {
   isAiEnabled: false,
+  status: "idle",
+  error: null,
   detectedGestures: [],
   detectedEmotions: [],
   capturedEmotionFrames: [],
@@ -45,6 +49,10 @@ const aiSlice = createSlice({
   name: "ai",
   initialState,
   reducers: {
+    setAiRuntime: (state, action: PayloadAction<{ status: AiState["status"]; error?: string | null }>) => {
+      state.status = action.payload.status;
+      state.error = action.payload.error ?? null;
+    },
     setAiEnabled: (state, action: PayloadAction<boolean>) => {
       state.isAiEnabled = action.payload;
     },
@@ -88,6 +96,7 @@ const aiSlice = createSlice({
 });
 
 export const {
+  setAiRuntime,
   setAiEnabled,
   addDetectedGesture,
   addDetectedEmotion,

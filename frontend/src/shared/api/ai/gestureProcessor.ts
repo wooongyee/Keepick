@@ -74,14 +74,15 @@ export class GestureProcessor {
       const vision = await FilesetResolver.forVisionTasks(wasmPath);
 
       // MediaPipe 모델들과 TensorFlow.js 모델들을 병렬로 로드
-      await Promise.all([
-        this.initMediaPipeModels(vision),
-        this.initTensorFlowModels()
+      const results = await Promise.allSettled([
+        this.initMediaPipeModels(vision), this.initTensorFlowModels(),
       ]);
+      const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failed) throw failed.reason;
 
       console.log("✅ GestureProcessor: All models initialized successfully.");
     } catch (error) {
-      console.error("❌ GestureProcessor: Failed to initialize models:", error);
+      this.cleanup();
       throw error;
     }
   }
@@ -178,7 +179,7 @@ export class GestureProcessor {
           console.log("✅ Static gesture model loaded successfully");
         } catch (error) {
           console.warn("❌ Failed to load static gesture model:", error);
-          this.aiConfig.gesture.static.enabled = false;
+          throw error;
         }
       }
 
@@ -190,7 +191,7 @@ export class GestureProcessor {
           console.log("✅ Dynamic gesture model loaded successfully");
         } catch (error) {
           console.warn("❌ Failed to load dynamic gesture model:", error);
-          this.aiConfig.gesture.dynamic.enabled = false;
+          throw error;
         }
       }
     } catch (error) {

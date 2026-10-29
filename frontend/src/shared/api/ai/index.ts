@@ -1,6 +1,7 @@
 // src/shared/api/ai/index.ts
 
 import { AppDispatch } from '@/shared/config/store';
+import type { AiSystemConfig } from '@/shared/types/ai.types';
 import { frontendAiProcessor } from './frontendAiProcessor';
 import { aiGestureHandler } from './aiGestureHandler';
 import { emotionCaptureManager } from './emotionCaptureManager';
@@ -10,7 +11,7 @@ import { emotionCaptureManager } from './emotionCaptureManager';
  * frontendAiProcessor, aiGestureHandler, emotionCaptureManager를 순차적으로 초기화하고 연결합니다.
  * @param dispatch Redux dispatch 함수
  */
-export async function initializeAISystem(dispatch: AppDispatch): Promise<void> {
+export async function initializeAISystem(dispatch: AppDispatch, config?: AiSystemConfig): Promise<void> {
   // Client-side check
   if (typeof window === 'undefined') {
     console.warn('AI System: Cannot initialize on server side');
@@ -21,7 +22,7 @@ export async function initializeAISystem(dispatch: AppDispatch): Promise<void> {
     console.log('🤖 Initializing AI System (Frontend Mode)...');
     
     // 1. FrontendAiProcessor 초기화 (메인 스레드에서 MediaPipe 처리)
-    await frontendAiProcessor.init(dispatch);
+    await frontendAiProcessor.init(dispatch, config);
 
     // 2. AIGestureHandler 초기화
     aiGestureHandler.init(dispatch);
@@ -30,12 +31,11 @@ export async function initializeAISystem(dispatch: AppDispatch): Promise<void> {
     emotionCaptureManager.init(dispatch);
 
     // 4. Frontend AI 프로세서의 결과 콜백을 AI 제스처 핸들러에 연결합니다.
-    frontendAiProcessor.setGestureCallback(aiGestureHandler.handleGestureResult.bind(aiGestureHandler));
-    frontendAiProcessor.setEmotionCallback(aiGestureHandler.handleEmotionResult.bind(aiGestureHandler));
+    // The active preview/conference owns callbacks; initialization must not overwrite them.
 
     console.log('✅ AI System (Frontend Mode) initialized successfully.');
   } catch (error) {
-    console.error('❌ AI System initialization failed:', error);
+    if (!(error instanceof Error && error.name === 'AbortError')) console.warn('AI System initialization failed:', error);
     throw error;
   }
 }

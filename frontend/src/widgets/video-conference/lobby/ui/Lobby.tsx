@@ -23,12 +23,13 @@ import { useAppDispatch, useAppSelector } from "@/shared/config/hooks";
 import { toggleCamera, toggleMic } from "@/entities/video-conference/media/model/slice";
 import {
   setAiEnabled,
+  setAiRuntime,
   toggleStaticGestureDetection,
   toggleDynamicGestureDetection,
   toggleEmotionDetection,
   toggleBeautyFilter,
 } from "@/entities/video-conference/ai/model/aiSlice";
-import { frontendAiProcessor } from "@/shared/api/ai"; // frontendAiProcessor는 계속 사용됩니다.
+import { frontendAiProcessor, initializeAISystem } from "@/shared/api/ai"; // frontendAiProcessor는 계속 사용됩니다.
 import { motion, AnimatePresence } from "framer-motion";
 import { AiTestDisplay } from "./AiTestDisplay";
 
@@ -73,7 +74,13 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
     microphone: false,
   });
   const [isInitializing, setIsInitializing] = useState(true);
-  const [isAiPreviewOpen, setIsAiPreviewOpen] = useState(true); // AI 프리뷰 UI의 열림/닫힘 상태 (기본 활성화)
+  const initialMediaControls = useRef({ isCameraOn, isMicOn });
+  const sourceStreamRef = useRef<MediaStream | null>(null);
+  const previewRequest = useRef(0);
+  const ownsPreview = useRef(false);
+  const invalidatePreview = useCallback(() => { previewRequest.current++; }, []);
+  const [isStartingAi, setIsStartingAi] = useState(false);
+  const [isAiPreviewOpen, setIsAiPreviewOpen] = useState(false);
 
   // 실시간 AI 결과 상태
   const [realtimeGestureResults, setRealtimeGestureResults] = useState<AiTestResult[]>([]);
@@ -146,67 +153,62 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
     }
   }, []);
 
-  // AI 프리뷰 1회성 활성화 함수
   const handleAiPreviewToggle = async () => {
-    try {
-      // 이미 활성화된 경우 아무것도 하지 않음
-      if (aiState.isAiEnabled && isAiPreviewOpen) {
-        console.log("⚠️ AI 기능이 이미 활성화되어 있습니다.");
-        return;
-      }
-      
-      // AI 기능 활성화 (1회성)
-      console.log("🤖 AI 프리뷰 활성화 시작...");
-      
-      // Redux 상태 먼저 업데이트
-      dispatch(setAiEnabled(true));
-      setIsAiPreviewOpen(true);
-
-
-        // 로비용 AI 콜백 설정
-        frontendAiProcessor.setGestureCallback(handleGestureResult);
-        frontendAiProcessor.setEmotionCallback(handleEmotionResult);
-
-        // 로컬 스트림이 있으면 AI 처리 시작
-        if (localStream?.getVideoTracks()[0]) {
-          const videoTrack = localStream.getVideoTracks()[0];
-          console.log("🎯 AI 비디오 처리 시작...");
-          
-          // AI 처리된 스트림 생성
-          const processedTrack = await frontendAiProcessor.processVideoTrack(videoTrack);
-          const processedStream = new MediaStream([processedTrack]);
-          setAiProcessedStream(processedStream);
-          
-          // AI 처리된 비디오 엘리먼트에 스트림 설정 (약간의 지연 후)
-          setTimeout(() => {
-            if (aiVideoRef.current && processedStream) {
-              aiVideoRef.current.srcObject = processedStream;
-              console.log("📺 AI 비디오 스트림 설정 완료");
-            }
-          }, 100);
-        }
-
-        console.log("✅ AI 프리뷰 활성화 완료");
-    } catch (error) {
-      console.error("❌ AI 프리뷰 활성화 오류:", error);
-      
-      // 에러 발생 시 상태 리셋
-      dispatch(setAiEnabled(false));
+    const request = ++previewRequest.current;
+    if (isStartingAi || aiState.isAiEnabled) {
+      frontendAiProcessor.cancelInitialization();
+      frontendAiProcessor.stopProcessing();
+      ownsPreview.current = false;
+      frontendAiProcessor.setGestureCallback(null);
+      frontendAiProcessor.setEmotionCallback(null);
+      setIsStartingAi(false);
       setIsAiPreviewOpen(false);
       setAiProcessedStream(null);
-      
-      // AI 리소스 정리
-      frontendAiProcessor.cleanup();
-      
-      // 에러 메시지 표시
-      setMediaError("AI 기능을 시작할 수 없습니다. 다시 시도해주세요.");
-      
-      // 3초 후 에러 메시지 자동 제거
-      setTimeout(() => {
-        setMediaError(null);
-      }, 3000);
+      dispatch(setAiEnabled(false));
+      return;
+    }
+    const source = sourceStreamRef.current?.getVideoTracks()[0];
+    if (!source) return;
+    ownsPreview.current = true;
+    setIsStartingAi(true);
+    const fail = (error: Error) => {
+      if (previewRequest.current !== request) return;
+      frontendAiProcessor.stopProcessing();
+      ownsPreview.current = false;
+      frontendAiProcessor.setGestureCallback(null);
+      frontendAiProcessor.setEmotionCallback(null);
+      setAiProcessedStream(null);
+      setIsAiPreviewOpen(false);
+      dispatch(setAiEnabled(false));
+      dispatch(setAiRuntime({ status: "error", error: error.message }));
+    };
+    try {
+      await initializeAISystem(dispatch, {
+        gesture: {
+          static: { enabled: aiState.isStaticGestureDetectionEnabled, confidence: 0.7 },
+          dynamic: { enabled: aiState.isDynamicGestureDetectionEnabled, confidence: 0.7 },
+        },
+        emotion: { enabled: aiState.isEmotionDetectionEnabled, confidence: 0.5 },
+        beauty: { ...aiState.beautyFilterConfig, enabled: aiState.isBeautyFilterEnabled },
+      });
+      if (previewRequest.current !== request) return;
+      frontendAiProcessor.setGestureCallback(handleGestureResult);
+      frontendAiProcessor.setEmotionCallback(handleEmotionResult);
+      const output = await frontendAiProcessor.processVideoTrack(source, fail);
+      if (previewRequest.current !== request) { output.stop(); return; }
+      setAiProcessedStream(new MediaStream([output]));
+      setIsAiPreviewOpen(true);
+      dispatch(setAiEnabled(true));
+    } catch (error) {
+      if (previewRequest.current === request) fail(error instanceof Error ? error : new Error("AI를 시작하지 못했습니다."));
+    } finally {
+      if (previewRequest.current === request) setIsStartingAi(false);
     }
   };
+
+  useEffect(() => {
+    if (aiVideoRef.current) aiVideoRef.current.srcObject = aiProcessedStream;
+  }, [aiProcessedStream]);
 
   // 권한 확인 함수
   const checkPermissions = async (): Promise<MediaPermissions> => {
@@ -228,6 +230,7 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
 
   // 미디어 장치 초기화 (Lobby 컴포넌트 마운트 시 한 번만 실행)
   useEffect(() => {
+    let disposed = false;
     const initializeMedia = async () => {
       setIsInitializing(true);
       setMediaError(null);
@@ -246,6 +249,8 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
             autoGainControl: true,
           },
         });
+        if (disposed) { stream.getTracks().forEach(track => track.stop()); return; }
+        sourceStreamRef.current = stream;
         setLocalStream(stream);
         setPermissions({ camera: true, microphone: true });
 
@@ -257,57 +262,49 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
         const videoTrack = stream.getVideoTracks()[0];
         const audioTrack = stream.getAudioTracks()[0];
         if (videoTrack) {
-          videoTrack.enabled = isCameraOn;
+          videoTrack.enabled = initialMediaControls.current.isCameraOn;
         }
         if (audioTrack) {
-          audioTrack.enabled = isMicOn;
+          audioTrack.enabled = initialMediaControls.current.isMicOn;
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        if (disposed) return;
+        const errorName = err instanceof Error ? err.name : "";
         console.error("미디어 장치 접근 오류:", err);
-        if (err.name === "NotAllowedError") {
+        if (errorName === "NotAllowedError") {
           setMediaError(
             "카메라와 마이크 사용 권한이 필요합니다. 브라우저 설정에서 권한을 허용해주세요."
           );
-        } else if (err.name === "NotFoundError") {
+        } else if (errorName === "NotFoundError") {
           setMediaError(
             "카메라 또는 마이크를 찾을 수 없습니다. 장치가 연결되어 있는지 확인해주세요."
           );
-        } else if (err.name === "NotReadableError") {
+        } else if (errorName === "NotReadableError") {
           setMediaError(
             "다른 애플리케이션에서 카메라를 사용 중입니다. 다른 앱을 종료하고 다시 시도해주세요."
           );
         } else {
-          setMediaError(`미디어 장치 오류: ${err.message || "알 수 없는 오류"}`);
+          setMediaError(`미디어 장치 오류: ${err instanceof Error ? err.message : "알 수 없는 오류"}`);
         }
       } finally {
-        setIsInitializing(false);
+        if (!disposed) setIsInitializing(false);
       }
     };
     initializeMedia();
 
-    // 컴포넌트 언마운트 시 미디어 트랙 중지 및 스트림 해제
     return () => {
-      console.log("🧹 Lobby 컴포넌트 정리 시작...");
-      
-      // 로컬 스트림 안전하게 정리
-      if (localStream) {
-        localStream.getTracks().forEach((track) => {
-          track.stop();
-          console.log("🛑 로컬 트랙 정지:", track.label);
-        });
+      disposed = true;
+      invalidatePreview();
+      if (ownsPreview.current) {
+        frontendAiProcessor.cancelInitialization();
+        frontendAiProcessor.stopProcessing();
+        frontendAiProcessor.setGestureCallback(null);
+        frontendAiProcessor.setEmotionCallback(null);
       }
-      
-      // AI 처리된 스트림 안전하게 정리
-      if (aiProcessedStream) {
-        aiProcessedStream.getTracks().forEach((track) => {
-          track.stop();
-          console.log("🛑 AI 처리된 트랙 정지:", track.label);
-        });
-      }
-      
-      console.log("✅ Lobby 컴포넌트 정리 완료");
+      sourceStreamRef.current?.getTracks().forEach(track => track.stop());
+      sourceStreamRef.current = null;
     };
-  }, []); // 의존성 배열을 비워 컴포넌트 마운트 시 한 번만 실행되도록 합니다.
+  }, [invalidatePreview]);
 
   // aiState.isAiEnabled 또는 isAiPreviewOpen 상태가 변경될 때마다 frontendAiProcessor의 설정 업데이트
   // 이 useEffect는 AI 설정 토글 버튼이 아닌, 개별 AI 기능(정적/동적 제스처, 감정 감지, 뷰티 필터) 버튼 클릭 시
@@ -325,10 +322,16 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
           beauty: { enabled: aiState.isBeautyFilterEnabled },
         })
         .catch((error) => {
-          console.error("AI 설정 업데이트 실패:", error);
+          if (!ownsPreview.current) return;
+          frontendAiProcessor.stopProcessing();
+          setAiProcessedStream(null);
+          setIsAiPreviewOpen(false);
+          dispatch(setAiEnabled(false));
+          console.warn("AI 설정 업데이트 실패; 기본 영상 유지", error);
         });
     }
   }, [
+    dispatch,
     aiState.isAiEnabled,
     aiState.isStaticGestureDetectionEnabled,
     aiState.isDynamicGestureDetectionEnabled,
@@ -680,27 +683,30 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
                 </div>
                 <button
                   onClick={handleAiPreviewToggle}
-                  disabled={!hasVideoTrack || isInitializing || (aiState.isAiEnabled && isAiPreviewOpen)}
+                  disabled={!hasVideoTrack || isInitializing}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-colors ${
                     aiState.isAiEnabled && isAiPreviewOpen
-                      ? "bg-[#424245] text-[#A0A0A5] cursor-not-allowed"
+                      ? "bg-[#424245] text-[#A0A0A5]"
                       : "bg-[#FE7A25] text-[#222222] hover:bg-[#E06B1F]"
                   } disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none`}
                 >
                   {aiState.isAiEnabled && isAiPreviewOpen ? (
                     <>
                       <CheckCircleIcon className="w-5 h-5" />
-                      <span>활성화됨</span>
+                      <span>끄기</span>
                     </>
                   ) : (
                     <>
                       <EyeIcon className="w-5 h-5" />
-                      <span>켜기</span>
+                      <span>{isStartingAi ? "준비 취소" : "켜기"}</span>
                     </>
                   )}
                 </button>
               </div>
               
+              {isStartingAi && <p role="status" className="mb-3 text-sm text-[#FCBC34]">AI 준비 중 · 취소해도 카메라는 유지됩니다.</p>}
+              {aiState.error && <p role="alert" className="mb-3 text-sm text-red-400">AI 준비 또는 처리에 실패했습니다. 잠시 후 다시 켜 주세요. 기본 영상으로 참여할 수 있습니다.</p>}
+
               {/* AI 세부 설정을 미리보기 카드 안으로 이동 */}
               <div className="p-3 bg-[#222222] rounded-lg">
                 <div className="mb-2">
@@ -711,6 +717,7 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => dispatch(toggleStaticGestureDetection())}
+                    disabled={isStartingAi || aiState.status === "loading"}
                     className={`flex items-center space-x-1 p-2 rounded text-xs ${
                       aiState.isStaticGestureDetectionEnabled
                         ? "bg-[#FE7A25]/20 text-[#FE7A25]"
@@ -723,6 +730,7 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
 
                   <button
                     onClick={() => dispatch(toggleDynamicGestureDetection())}
+                    disabled={isStartingAi || aiState.status === "loading"}
                     className={`flex items-center space-x-1 p-2 rounded text-xs ${
                       aiState.isDynamicGestureDetectionEnabled
                         ? "bg-[#FE7A25]/20 text-[#FE7A25]"
@@ -735,6 +743,7 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
 
                   <button
                     onClick={() => dispatch(toggleEmotionDetection())}
+                    disabled={isStartingAi || aiState.status === "loading"}
                     className={`flex items-center space-x-1 p-2 rounded text-xs ${
                       aiState.isEmotionDetectionEnabled
                         ? "bg-[#FE7A25]/20 text-[#FE7A25]"
@@ -747,6 +756,7 @@ export const Lobby = ({ onJoin, isLoading, error }: LobbyProps) => {
 
                   <button
                     onClick={() => dispatch(toggleBeautyFilter())}
+                    disabled={isStartingAi || aiState.status === "loading"}
                     className={`flex items-center space-x-1 p-2 rounded text-xs ${
                       aiState.isBeautyFilterEnabled
                         ? "bg-[#FE7A25]/20 text-[#FE7A25]"
