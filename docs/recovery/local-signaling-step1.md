@@ -53,7 +53,7 @@ SIGNALING_URL=http://localhost:18443 npm run test:signaling
 
 ## 변경과 이유
 
-1. **실행을 막던 미완성 화면공유 REST 라우트 제거.** 이 파일은 저장소에 없는 ScreenShareController를 import해 TypeScript 빌드부터 실패했다. 또한 Router 생성 함수를 호출하지 않고 app.use에 전달하고 있었다. 이 경로를 제거해 서버를 실행할 수 있게 했으며 화면공유 기능을 복구했다고 간주하지 않는다.
+1. **미완성 화면공유 REST 라우트는 보존하고 기동 경로에서 분리.** 기존 파일은 저장소에 없는 ScreenShareController를 import해 TypeScript 빌드부터 실패했다. 또한 Router 생성 함수를 호출하지 않고 app.use에 전달하고 있었다. 기존 8개 REST 경로는 screen-share.routes.ts에 보존하고, 컨트롤러를 주입받는 방식으로 바꿨다. 컨트롤러를 복구하기 전까지 서버에 등록하지 않는다. 화면공유 service/factory도 유지하며, 화면공유 기능을 복구했다고 간주하지 않는다. 복구 중 미완성 기능은 삭제 대신 기동 경로에서 분리해 보존한다.
 2. **HTTP/HTTPS·host·port·Origin을 환경 변수화.** 기존 개발 모드는 certs/server.key와 server.cert가 필수였다. 로컬 프로필은 HTTP, 127.0.0.1:18443으로 명시한다. 기존 웹 개발 스크립트의 NEXT_PUBLIC_SOCKET_SERVER_URL이 이미 localhost:18443을 가리키므로 웹 소스 변경은 필요하지 않았다. 운영 배포나 Preview 설정은 변경하지 않았다.
 3. **미디어 IP와 포트 범위 환경 변수화.** 고정된 192.168.0.7 대신 로컬 listen/announced IP를 127.0.0.1로 설정했다. 포트 범위는 10000–10100이며 잘못된 포트/범위는 시작 전에 거절한다.
 4. **worker readiness와 WebSocket Origin 확인 추가.** HTTP CORS 외에도 allowRequest로 브라우저 WebSocket Origin을 검사한다. CORS만으로 WebSocket을 제한할 수 없기 때문이다. 이것은 사용자 인증/방 권한 확인을 대신하지 않는다. [Socket.IO 공식 설명](https://socket.io/docs/v4/handling-cors/).

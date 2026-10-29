@@ -36,6 +36,9 @@ class Application {
 
     this.app.use("/", chatRouter);
 
+    // Screen-share REST routes are preserved in routes/screen-share.routes.ts.
+    // Mount screenShareRouter(controller) after its missing controller is restored.
+
     this.app.get("/health", (_req, res) => {
       const worker = mediasoupService.getWorker();
       const ready = !!worker && !worker.closed;
