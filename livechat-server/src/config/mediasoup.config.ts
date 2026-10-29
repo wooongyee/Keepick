@@ -14,10 +14,9 @@ export const mediasoupConfig = {
     rtcMaxPort,
   },
   webRtcTransport: {
-    listenIps: [{
-      ip: process.env.MEDIASOUP_LISTEN_IP ?? "127.0.0.1",
-      announcedIp: process.env.MEDIASOUP_ANNOUNCED_IP ?? "127.0.0.1",
-    }],
+    listenIps: [process.env.MEDIASOUP_ANNOUNCED_IP ?? "127.0.0.1",
+      ...(process.env.MEDIASOUP_ADDITIONAL_ANNOUNCED_IPS ?? "").split(",").map(ip => ip.trim()).filter(Boolean),
+    ].map(announcedIp => ({ ip: process.env.MEDIASOUP_LISTEN_IP ?? "127.0.0.1", announcedIp })),
     enableUdp: true,
     enableTcp: true,
     preferUdp: true,

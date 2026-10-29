@@ -1,0 +1,17 @@
+# syntax=docker/dockerfile:1
+FROM node:22-bookworm AS build
+WORKDIR /src
+RUN apt-get update && apt-get install -y --no-install-recommends python3-pip python3-venv && rm -rf /var/lib/apt/lists/*
+COPY livechat-server/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci --no-audit
+COPY livechat-server/ ./
+RUN npm run build && npm prune --omit=dev
+FROM node:22-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production SERVER_HOST=0.0.0.0 SERVER_PORT=8443 SERVER_PROTOCOL=http REALTIME_REQUIRE_AUTH=true
+COPY --from=build --chown=node:node /src/node_modules ./node_modules
+COPY --from=build --chown=node:node /src/dist ./dist
+COPY --from=build --chown=node:node /src/package.json ./package.json
+USER node
+EXPOSE 8443
+CMD ["node", "dist/app.js"]

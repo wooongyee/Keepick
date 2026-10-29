@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   distDir: process.env.KEEPICK_NEXT_DIST_DIR || ".next",
   images: {
     unoptimized: process.env.NEXT_PUBLIC_LOCAL_DEMO === "true",

@@ -1,0 +1,17 @@
+.git
+**/.git
+**/node_modules
+**/.next
+**/.next-buildcheck
+**/build
+**/.gradle
+**/.local-data
+**/.env
+**/.env.*
+**/certs
+**/*.key
+**/*.pem
+**/*.log
+output
+.playwright-cli
+android

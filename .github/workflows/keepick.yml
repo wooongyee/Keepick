@@ -1,0 +1,154 @@
+name: Keepick CI and home deployment
+on:
+  push:
+    branches: [master, restore/local-runtime]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: keepick-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  web:
+    runs-on: ubuntu-24.04
+    defaults: {run: {working-directory: frontend}}
+    env:
+      NEXT_PUBLIC_API_BASE_URL: ${{ vars.KEEPICK_PUBLIC_ORIGIN || 'https://keepick.woongyee.com' }}
+      NEXT_PUBLIC_SOCKET_SERVER_URL: ${{ vars.KEEPICK_PUBLIC_ORIGIN || 'https://keepick.woongyee.com' }}
+      NEXT_PUBLIC_AUTH_PROVIDERS: google
+      NEXT_PUBLIC_LOCAL_DEMO: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: {node-version: '22', cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: npm ci --no-audit
+      - run: npm run test:ai-lifecycle && npm run test:sockets
+      - run: npx tsc --noEmit
+      - run: npm run build
+  api:
+    runs-on: ubuntu-24.04
+    defaults: {run: {working-directory: backend}}
+    env:
+      GOOGLE_CLIENT_ID: test-client
+      GOOGLE_CLIENT_SECRET: test-secret
+      KAKAO_CLIENT_ID: test-client
+      NAVER_CLIENT_ID: test-client
+      NAVER_CLIENT_SECRET: test-secret
+      JWT_SECRET: keepick-test-only-key-000000000000000000000000000000000000000000
+      STATE_SECRET: keepick-test-only-state-00000000000000000000000000000000000000000
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: ap-northeast-2
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      SPRING_CLOUD_AWS_SQS_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with: {distribution: temurin, java-version: '21', cache: gradle}
+      - run: bash ./gradlew --no-daemon test bootJar
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: {name: backend-test-report, path: backend/build/reports/tests/test, retention-days: 7}
+  realtime:
+    runs-on: ubuntu-24.04
+    defaults: {run: {working-directory: livechat-server}}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version: '22', cache: npm, cache-dependency-path: livechat-server/package-lock.json}
+      - run: npm ci --no-audit
+      - run: npm run build
+      - name: Real Socket.IO and native mediasoup regression
+        env:
+          NODE_ENV: test
+          SERVER_PROTOCOL: http
+          SERVER_HOST: 127.0.0.1
+          SERVER_PORT: '18444'
+          SOCKET_ALLOWED_ORIGINS: http://localhost:3107,http://127.0.0.1:3107,http://127.0.0.1:3108
+          MEDIASOUP_LISTEN_IP: 127.0.0.1
+          MEDIASOUP_ANNOUNCED_IP: 127.0.0.1
+          SIGNALING_URL: http://127.0.0.1:18444
+        run: |
+          node dist/app.js > runtime.log 2>&1 &
+          realtime_pid=$!
+          trap 'kill "$realtime_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -fsS "$SIGNALING_URL/health"; then break; fi
+            sleep 1
+          done
+          node --test tests/*.test.cjs
+  deployer-tests:
+    runs-on: ubuntu-24.04
+    defaults: {run: {working-directory: deploy/mcp}}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version: '22'}
+      - run: npm ci --ignore-scripts --no-audit
+      - run: npm test
+  images:
+    if: github.event_name != 'pull_request' && github.repository == 'wooongyee/Keepick'
+    needs: [web, api, realtime, deployer-tests]
+    runs-on: ubuntu-24.04
+    permissions: {contents: read, packages: write}
+    strategy:
+      fail-fast: false
+      matrix: {component: [web, api, realtime, gateway]}
+    env:
+      COMPONENT: ${{ matrix.component }}
+      PUBLIC_ORIGIN: ${{ vars.KEEPICK_PUBLIC_ORIGIN || 'https://keepick.woongyee.com' }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - name: Build immutable amd64 image
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker buildx create --driver docker-container --use
+          image="ghcr.io/wooongyee/keepick-$COMPONENT"
+          docker buildx build --platform linux/amd64 --provenance=false \
+            --file "deploy/Dockerfile.$COMPONENT" --tag "$image:$GITHUB_SHA" \
+            --build-arg "PUBLIC_ORIGIN=$PUBLIC_ORIGIN" \
+            --label "org.opencontainers.image.source=https://github.com/wooongyee/Keepick" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --cache-from "type=registry,ref=$image:buildcache" \
+            --cache-to "type=registry,ref=$image:buildcache,mode=max" \
+            --metadata-file metadata.json --push .
+          python3 - <<'PY'
+          import json,os
+          meta=json.load(open('metadata.json'))
+          json.dump({'revision':os.environ['GITHUB_SHA'],'digest':meta['containerimage.digest']},open(os.environ['COMPONENT']+'.json','w'))
+          PY
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: keepick-image-${{ matrix.component }}
+          path: ${{ matrix.component }}.json
+          retention-days: 7
+  deploy:
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'wooongyee/Keepick'
+    needs: [images]
+    runs-on: ubuntu-24.04
+    environment: production
+    permissions: {contents: read, packages: read}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with: {node-version: '22'}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: {pattern: keepick-image-*, path: image-metadata, merge-multiple: true}
+      - run: npm ci --prefix deploy/mcp --ignore-scripts --no-audit
+      - name: Deploy through Keepick MCP and verify health
+        env:
+          KEEPICK_DEPLOY_MCP_URL: ${{ vars.KEEPICK_DEPLOY_MCP_URL }}
+          KEEPICK_DEPLOY_TOKEN: ${{ secrets.KEEPICK_DEPLOY_TOKEN }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEPICK_IMAGE_METADATA: image-metadata
+        run: node deploy/mcp/client.mjs
