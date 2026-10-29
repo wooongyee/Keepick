@@ -1,0 +1,52 @@
+spring:
+  config:
+    import: optional:file:.env.local[.properties]
+  datasource:
+    url: jdbc:mysql://localhost:13306/keepick?serverTimezone=UTC
+    username: keepick
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: localhost
+      port: 16379
+  cloud:
+    aws:
+      sqs:
+        enabled: false
+      credentials:
+        access-key: unused-local
+        secret-key: unused-local
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:18080/api/login/oauth2/code/google}
+          kakao:
+            client-id: unused-local
+          naver:
+            client-id: unused-local
+            client-secret: unused-local
+server:
+  address: 127.0.0.1
+  port: 18080
+  forward-headers-strategy: none
+app:
+  redirect:
+    defaultBase: ${LOCAL_WEB_URL:http://localhost:3107}
+    allowed: ${LOCAL_ALLOWED_ORIGINS:http://localhost:3107,http://127.0.0.1:3107}
+  storage:
+    type: local
+    local:
+      root: ${LOCAL_STORAGE_ROOT:./.local-data/images}
+      base-url: ${LOCAL_API_URL:http://localhost:18080}
+      secret: ${LOCAL_STORAGE_SECRET}
+  aws:
+    s3:
+      bucket-name: unused-local
+    sqs:
+      queue-name: unused-local
+logging:
+  level:
+    com.ssafy.keepick.global.security: WARN
+    org.hibernate.SQL: WARN

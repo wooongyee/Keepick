@@ -77,6 +77,8 @@ public class SecurityConfig {
                 .requestMatchers(
                         // OAuth2 관련 경로
                         "/api/oauth2/**",
+                        "/api/local-files/**",
+                        "/api/local-health",
                         "/api/login/oauth2/**",
                         // 모바일 인증 관련 경로
                         "/api/auth/login",
