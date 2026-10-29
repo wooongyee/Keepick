@@ -40,6 +40,10 @@ const emojiReactionSlice = createSlice({
       }
     },
 
+    expireReaction: (state, action: PayloadAction<{ userId: string; id: string }>) => {
+      const { userId, id } = action.payload;
+      if (state.activeReactions[userId]?.id === id) delete state.activeReactions[userId];
+    },
     removeReaction: (state, action: PayloadAction<string>) => {
       const userId = action.payload;
       delete state.activeReactions[userId];
@@ -75,6 +79,7 @@ const emojiReactionSlice = createSlice({
 export const {
   addReaction,
   removeReaction,
+  expireReaction,
   clearUserReaction,
   clearAllReactions,
   cleanupExpiredReactions,

@@ -11,7 +11,6 @@ import { initializeSocketApi, webrtcHandler, chatHandler, aiEventHandler } from 
 import { setRoomId } from "@/entities/video-conference/session/model/slice";
 import { joinRoomThunk } from "@/entities/video-conference/session/model/thunks";
 import { frontendAiProcessor } from "@/shared/api/ai"; // frontendAiProcessor 임포트 유지
-import { addReaction } from "@/entities/emoji-reaction/model/slice";
 import { mapGestureToEmoji, mapEmotionToEmoji, generateReactionId } from "@/shared/utils/aiEmojiMapper";
 import type { GestureResult, EmotionResult } from "@/shared/types/ai.types";
 
@@ -62,8 +61,6 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
         console.log("🚀 Setting up AI handlers...");
         aiEventHandler.setRoomId(roomId);
         
-        // 실제 사용자 정보 설정
-        aiEventHandler.setUserInfo("local", userName || "익명");
 
         // AI 콜백 설정 (화상회의용)
         frontendAiProcessor.setGestureCallback((result: GestureResult) => {
@@ -84,7 +81,6 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
               confidence: result.static.confidence
             };
             
-            dispatch(addReaction(reaction));
             aiEventHandler.sendAiReaction(reaction);
             console.log("✅ Static gesture reaction added:", reaction);
           }
@@ -104,7 +100,6 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
               confidence: result.dynamic.confidence
             };
             
-            dispatch(addReaction(reaction));
             aiEventHandler.sendAiReaction(reaction);
             console.log("✅ Dynamic gesture reaction added:", reaction);
           }
@@ -127,7 +122,6 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
               confidence: result.confidence
             };
             
-            dispatch(addReaction(reaction));
             aiEventHandler.sendAiReaction(reaction);
             console.log("✅ Emotion reaction added:", reaction);
           }
@@ -135,6 +129,7 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
         
         console.log("✅ AI handlers set up successfully.");
     return () => {
+      aiEventHandler.setRoomId("");
       frontendAiProcessor.setGestureCallback(null);
       frontendAiProcessor.setEmotionCallback(null);
     };
