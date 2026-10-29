@@ -11,6 +11,12 @@ export class SocketManager {
   constructor(server: http.Server | https.Server) {
     this.io = new SocketIOServer(server, {
       cors: serverConfig.cors,
+      // Browser WebSocket handshakes also need an origin check; HTTP CORS
+      // headers alone only cover polling. This is not participant authentication.
+      allowRequest: (request, callback) => {
+        const origin = request.headers.origin;
+        callback(null, !origin || serverConfig.cors.origin.includes(origin));
+      },
     });
     setupSocketHandlers(this.io);
     logger.info("Socket.IO server configured");

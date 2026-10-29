@@ -3,8 +3,25 @@ import { mediasoupService } from "../../media/mediasoup.service";
 
 export class RoomRepository {
   private rooms: Map<string, RoomState> = new Map();
+  private pendingRooms = new Map<string, Promise<RoomState>>();
 
   async createRoom(roomId: string, chatSessionId: string): Promise<RoomState> {
+    const existing = this.rooms.get(roomId);
+    if (existing) return existing;
+    const pending = this.pendingRooms.get(roomId);
+    if (pending) return pending;
+
+    // Router creation awaits the worker. Concurrent first joins must share it.
+    const creation = this.createRoomWithRouter(roomId, chatSessionId);
+    this.pendingRooms.set(roomId, creation);
+    try {
+      return await creation;
+    } finally {
+      this.pendingRooms.delete(roomId);
+    }
+  }
+
+  private async createRoomWithRouter(roomId: string, chatSessionId: string): Promise<RoomState> {
     const router = await mediasoupService.createRouter();
     const room: RoomState = {
       id: roomId,

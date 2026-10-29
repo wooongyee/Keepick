@@ -1,5 +1,7 @@
 # 로컬 Google 로그인·사진 저장 테스트
 
+후속 Node 서버 복구와 두 클라이언트 입장 검증은 `docs/recovery/local-signaling-step1.md`에 기록했다. 아래는 로그인·사진 저장을 복구했을 때의 실행 기록이다.
+
 2026-10-29. 웹과 API는 개발 PC에서 실행하고 MySQL/Redis만 Docker로 실행한다. `local` 프로필에서는 S3/SQS를 사용하지 않는다. Node 통화 서버와 Python 분석 서버는 이번 실행 범위에 포함하지 않는다.
 
 ## 주소와 실행

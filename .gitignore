@@ -45,6 +45,9 @@ certs/
 **/.next/
 **/.next-buildcheck/
 **/.local-data/
+livechat-server/dist/
+output/playwright/
+.playwright-cli/
 
 # Visual Studio Code
 .vscode/

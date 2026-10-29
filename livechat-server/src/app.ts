@@ -9,7 +9,6 @@ import { SocketManager } from "./infra/socket/socket.manager";
 import { mediasoupService } from "./domain/media/mediasoup.service";
 import { mediaRouter } from "./routes/media.routes";
 import { chatRouter } from "./routes/chat.routes";
-import { screenShareRouter } from './routes/screen-share.routes';
 
 import { logger } from "./utils/logger";
 
@@ -37,7 +36,11 @@ class Application {
 
     this.app.use("/", chatRouter);
 
-    this.app.use('/', screenShareRouter);
+    this.app.get("/health", (_req, res) => {
+      const worker = mediasoupService.getWorker();
+      const ready = !!worker && !worker.closed;
+      res.status(ready ? 200 : 503).json({ service: "keepick-realtime", ready });
+    });
 
     this.app.get("/", (req, res) => {
       res.send(`
