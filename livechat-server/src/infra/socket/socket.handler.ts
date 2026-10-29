@@ -1,4 +1,5 @@
 import { Server, Socket } from "socket.io";
+import { realtimeAccess } from "../../domain/auth/access";
 import { registerReactionHandler } from "../../domain/reaction/reaction.handler";
 import { roomService } from "../../domain/room/factory/room.factory";
 import { chatService } from "../../domain/chat/factory/chat.factory";
@@ -30,6 +31,18 @@ import {
 
 export function setupSocketHandlers(io: Server): void {
   io.on("connection", (socket: Socket) => {
+    socket.use(async ([event, data], next) => {
+      if (!realtimeAccess.required) { next(); return; }
+      try {
+        if (event === "join_room" || event === "chat_join") {
+          await realtimeAccess.authorizeRoom(socket, data?.roomId);
+          data.userName = socket.data.keepick.nickname;
+        } else if (event !== "chat_leave" && data?.roomId && data.roomId !== roomService.getRoomByPeerId(socket.id)?.id) {
+          throw new Error("그룹 접근 권한이 없습니다.");
+        }
+        next();
+      } catch { socket.emit("error", { message: "로그인과 그룹 접근 권한을 확인해 주세요." }); }
+    });
     registerReactionHandler(io, socket, roomService);
     // 핸들러들 인스턴스 생성
     const roomEventsHandler = new RoomEventsHandler(roomService);

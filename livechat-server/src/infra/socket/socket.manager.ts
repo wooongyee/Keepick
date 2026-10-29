@@ -3,6 +3,7 @@ import http from "http";
 import https from "https";
 import { serverConfig } from "../server/server.config";
 import { setupSocketHandlers } from "./socket.handler";
+import { realtimeAccess } from "../../domain/auth/access";
 import { logger } from "../../utils/logger";
 
 export class SocketManager {
@@ -18,6 +19,7 @@ export class SocketManager {
         callback(null, !origin || serverConfig.cors.origin.includes(origin));
       },
     });
+    this.io.use((socket, next) => { void realtimeAccess.authenticate(socket, next); });
     setupSocketHandlers(this.io);
     logger.info("Socket.IO server configured");
   }

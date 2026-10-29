@@ -21,7 +21,10 @@ class SocketManager {
     }
 
     console.log("Connecting to socket server...");
-    this.socket = io(SOCKET_SERVER_URL, { transports: ["websocket"] });
+    this.socket = io(SOCKET_SERVER_URL, {
+      transports: ["websocket"],
+      auth: (callback) => callback({ token: typeof window !== "undefined" ? localStorage.getItem("accessToken") : null }),
+    });
     this.handlers = handlers;
     this.setupCoreListeners(dispatch);
     this.registerHandlers(dispatch);
