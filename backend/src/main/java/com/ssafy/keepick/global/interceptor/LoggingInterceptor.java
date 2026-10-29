@@ -39,7 +39,7 @@ public class LoggingInterceptor implements HandlerInterceptor {
                 " Time        : " + LocalDateTime.now().format(formatter) + "\n" +
                 " Method      : " + request.getMethod() + "\n" +
                 " URI         : " + request.getRequestURI() + "\n" +
-                " Query Params: " + request.getQueryString() + "\n" +
+                " Query Params: " + (request.getQueryString() == null ? "" : "[redacted]") + "\n" +
                 " Remote IP   : " + request.getRemoteAddr() + "\n" +
                 " User-Agent  : " + request.getHeader("User-Agent") + "\n" +
                 " Headers     : " + getHeaders(request) + "\n" +
@@ -78,7 +78,8 @@ public class LoggingInterceptor implements HandlerInterceptor {
         Enumeration<String> headerNames = request.getHeaderNames();
         if (headerNames != null) {
             for (String headerName : Collections.list(headerNames)) {
-                headers.append(headerName).append("=").append(request.getHeader(headerName)).append("; ");
+                boolean sensitive = java.util.Set.of("authorization", "cookie", "set-cookie", "referer").contains(headerName.toLowerCase(java.util.Locale.ROOT));
+                headers.append(headerName).append("=").append(sensitive ? "[redacted]" : request.getHeader(headerName)).append("; ");
             }
         }
         return headers.toString();

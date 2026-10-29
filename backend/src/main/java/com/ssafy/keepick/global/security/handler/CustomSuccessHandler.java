@@ -129,7 +129,7 @@ public class CustomSuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
                 .toUriString();
 
         log.info("🔄 OAuth2 리다이렉트 완료 - 누가: {}(ID:{}) | 언제: {} | 어디서: {} | 무엇을: {}로 리다이렉트 | 어떻게: Origin:{} → {} | 왜: 인증 성공 후 프론트엔드 전달",
-                username, memberId, java.time.LocalDateTime.now(), clientIp, redirectUrl, rawState != null ? "state파싱" : "헤더추정", baseRedirect);
+                username, memberId, java.time.LocalDateTime.now(), clientIp, baseRedirect, rawState != null ? "state파싱" : "헤더추정", baseRedirect);
 
         response.sendRedirect(redirectUrl);
     }

@@ -32,7 +32,7 @@ public class CustomOAuth2MemberService extends DefaultOAuth2UserService {
 
         OAuth2User oAuth2User = super.loadUser(userRequest);
 
-        log.info("OAuth2 사용자 정보: {}", oAuth2User);
+        // Provider user details are intentionally excluded from application logs.
 
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
         log.info("OAuth2 로그인 시도: 제공자 = {}", registrationId);
