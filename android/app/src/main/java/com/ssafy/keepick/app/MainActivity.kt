@@ -1,0 +1,25 @@
+package com.ssafy.keepick.app
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import com.ssafy.keepick.app.navigation.KeepickNavHost
+import com.ssafy.keepick.core.designsystem.theme.KeepickTheme
+import dagger.hilt.android.AndroidEntryPoint
+
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+
+        val deepLinkUri = intent.data?.toString()
+        intent.data = null
+        setContent {
+            KeepickTheme {
+                KeepickNavHost(initialDeepLinkUri = deepLinkUri)
+            }
+        }
+    }
+}
