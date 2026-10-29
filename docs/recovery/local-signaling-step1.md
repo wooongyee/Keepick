@@ -1,5 +1,7 @@
 # Keepick 1단계: 로컬 실시간 서버와 방 입장 검증
 
+후속 실제 웹 영상·음성 송수신과 consumer 정리 검증은 `docs/recovery/local-media-step2.md`에 기록했다.
+
 2026-10-29. 대상 브랜치 `restore/local-runtime`. 웹과 Android 안정화 중 첫 단계다.
 
 **결과:** Node/Socket.IO와 실제 mediasoup worker를 로컬에서 실행했다. 독립된 Chrome A/B가 같은 방에 서로 다른 소켓 ID로 입장해 상대 참가자를 확인했다. 통합 검사 6개가 통과했다. 실제 회의 UI·카메라·마이크·RTP 영상/음성 송수신·AI는 이번 검증에 포함하지 않았다.
