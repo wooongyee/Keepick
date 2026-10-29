@@ -1,7 +1,7 @@
 // Run with playwright-cli run-code --filename after opening about:blank.
 // Install before navigating to the real app; use ?testTone=440 or ?testTone=660.
 async (page) => {
-  await page.addInitScript(() => {
+  await page.context().addInitScript(() => {
     if (!["localhost", "127.0.0.1"].includes(location.hostname)) return;
     const connections = [];
     window.__keepickCaptureStreams = [];

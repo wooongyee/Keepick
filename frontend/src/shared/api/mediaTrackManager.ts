@@ -936,7 +936,7 @@ async replaceLocalTrack(trackId: string, newTrack: MediaStreamTrack): Promise<vo
   // 🆕 원격 Producer ID로 트랙 정보 조회
   getRemoteTrackByProducerId(producerId: string): TrackInfo | null {
     for (const trackInfo of this.remoteTracks.values()) {
-      if (trackInfo.consumer?.id === producerId || trackInfo.producer?.id === producerId) {
+      if (trackInfo.consumer?.producerId === producerId || trackInfo.producer?.id === producerId) {
         return trackInfo;
       }
     }

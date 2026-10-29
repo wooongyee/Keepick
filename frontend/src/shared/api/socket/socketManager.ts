@@ -59,28 +59,29 @@ class SocketManager {
    * @param data 보낼 데이터
    * @param timeout 타임아웃 (ms)
    */
-  public request<T>(event: string, responseEvent: string, data: any, timeout = 3000): Promise<T> {
-    return new Promise((resolve, reject) => {
-      if (!this.socket) {
-        return reject(new Error("Socket not initialized."));
-      }
-
+  public request<T>(
+    event: string, responseEvent: string, data: unknown, timeout = 3000,
+    matches: (response: T) => boolean = () => true,
+  ): Promise<T> {
+    const socket = this.socket;
+    if (!socket) return Promise.reject(new Error("Socket not initialized."));
+    return new Promise<T>((resolve, reject) => {
+      const clean = () => {
+        clearTimeout(timer);
+        socket.off(responseEvent, received);
+      };
+      const received = (response: T) => {
+        if (!matches(response)) return;
+        clean();
+        resolve(response);
+      };
       const timer = setTimeout(() => {
-        this.socket?.off(responseEvent);
+        clean();
         reject(new Error(`Request for '${event}' timed out after ${timeout}ms`));
       }, timeout);
-
-      this.socket.once(responseEvent, (responseData: T) => {
-        clearTimeout(timer);
-        resolve(responseData);
-      });
-
-      this.socket.emit(event, data, (ackResponse?: { error: string }) => {
-        if (ackResponse?.error) {
-          clearTimeout(timer);
-          this.socket?.off(responseEvent);
-          reject(new Error(ackResponse.error));
-        }
+      socket.on(responseEvent, received);
+      socket.emit(event, data, (ack?: { error?: string }) => {
+        if (ack?.error) { clean(); reject(new Error(ack.error)); }
       });
     });
   }

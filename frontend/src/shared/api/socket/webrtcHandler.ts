@@ -247,7 +247,8 @@ class WebRTCHandler {
     socketManager.request("resume_consumer", "consumer_resumed", data);
 
   public closeProducer = (data: { producerId: string }): Promise<void> =>
-    socketManager.request("close_producer", "producer_closed", data);
+    socketManager.request<{ producerId: string }>("close_producer", "producer_closed_success", data, 3000,
+      response => response?.producerId === data.producerId).then(() => {});
 
   private getCurrentRoomId(): string {
     const path = window.location.pathname;

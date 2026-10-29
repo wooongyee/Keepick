@@ -156,3 +156,14 @@ test("leaving producer removes its consumers from the remaining peer", async (t)
   }
   assert.equal(remaining, 0);
 });
+
+test('closing a screen producer acknowledges the sender and notifies the receiver while camera stays',async t=>{
+ const room=randomUUID(),a=await client(t),b=await client(t);await join(a,room,'A');await join(b,room,'B');
+ const transport=await reply(a,'producer_transport_created',()=>a.emit('create_producer_transport',{roomId:room}));
+ const produce=(ssrc,type)=>reply(a,'producer_created',()=>a.emit('produce',{roomId:room,transportId:transport.id,kind:'video',rtpParameters:{codecs:[{mimeType:'video/VP8',payloadType:96,clockRate:90000}],encodings:[{ssrc}],rtcp:{cname:'screen-test'}},appData:{type,peerId:a.id,peerName:'A'}}));
+ const camera=await produce(1234561,'camera'),screen=await produce(1234562,'screen');
+ const noticed=reply(b,'producer_closed',()=>{});const ack=await reply(a,'producer_closed_success',()=>a.emit('close_producer',{producerId:screen.id}));
+ assert.equal(ack.producerId,screen.id);assert.equal((await noticed).producerId,screen.id);
+ const info=await reply(a,'room_info',()=>a.emit('get_room_info',{roomId:room}));assert.equal(info.peers.find(p=>p.id===a.id).producersCount,1);
+ const last=await reply(a,'producer_closed_success',()=>a.emit('close_producer',{producerId:camera.id}));assert.equal(last.producerId,camera.id);
+});
