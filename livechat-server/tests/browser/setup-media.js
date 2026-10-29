@@ -4,6 +4,7 @@ async (page) => {
   await page.addInitScript(() => {
     if (!["localhost", "127.0.0.1"].includes(location.hostname)) return;
     const connections = [];
+    window.__keepickCaptureStreams = [];
     window.__keepickPeerConnections = connections;
     window.RTCPeerConnection = new Proxy(window.RTCPeerConnection, {
       construct(Target, args) {
@@ -44,6 +45,7 @@ async (page) => {
         };
         stream.addTrack(track);
       }
+      window.__keepickCaptureStreams.push(stream);
       return stream;
     };
   });
