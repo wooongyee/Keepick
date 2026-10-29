@@ -114,7 +114,7 @@ Node의 채팅방/메시지는 현재 메모리 `Map`에 저장한다. 재시작
 
 기본 브랜치 이름은 우선 `master`를 유지한다. 복구 작업은 `restore/local-runtime`에 모으고, 이후 짧은 기능 브랜치가 같은 통합 브랜치를 대상으로 PR을 만든다. 안정화 완료 후 master로 복구 결과를 반영한다. frontend/backend/android별 장기 통합 브랜치를 다시 만들지 않는다.
 
-새 커밋 형식은 `type(scope): 사용자에게 달라지는 동작`으로 단순화한다. `fix`, `feat`, `refactor`, `test`, `ci`, `build`, `docs`, `chore`를 사용하고 scope는 필요할 때 `auth`, `photos`, `web`, `android`, `api`, `media`, `infra`를 붙인다. 이슈가 생기면 GitHub 번호를 본문에 연결한다. 옛 Jira 번호를 새 작업에 계속 강제하거나 과거 커밋을 재작성하지 않는다.
+새 커밋 형식은 `type(scope): 사용자에게 달라지는 동작`으로 단순화한다. `fix`, `feat`, `refactor`, `test`, `ci`, `build`, `docs`, `chore`를 사용하고 scope는 필요할 때 `auth`, `photos`, `web`, `android`, `api`, `media`, `infra`를 붙인다. 사용자 결정에 따라 Jira 티켓은 새로 운영하지 않는다. PR 본문의 목적·완료 조건·검증 결과를 기본 작업 기록으로 사용한다. GitHub Issue도 필수로 만들지 않고, PR 밖에서 오래 남겨야 하는 버그·결정이 있을 때만 선택적으로 사용한다. 과거 Jira 번호와 커밋은 원본 이력으로 유지한다.
 
 예:
 
@@ -188,3 +188,77 @@ PR → 변경 영역 판단 → 해당 검사/빌드 → ci-required → merge
 - [GitHub required checks와 skip 동작](https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/troubleshooting-required-status-checks)
 - [GitHub self-hosted runner 실행 경계](https://docs.github.com/en/actions/reference/security/secure-use)
 - [Vercel Git 및 production branch](https://vercel.com/docs/git), [Vercel Deployment Checks](https://vercel.com/docs/deployment-checks)
+
+## 추가 조사: 별도 AI PC, 사진 분석, 통화 중 손동작 인식
+
+2026-10-29 추가. 아래는 현재 통합 소스의 정적 조사 결과다. 실제 AI PC나 통화 장치를 연결한 실행 검증은 수행하지 않았다. 예전 운영에서 다른 worker가 있었을 가능성은 남아 있지만, 확인한 Python 폴더에는 메시지 큐를 polling하는 worker가 없다.
+
+### 사진 분석의 실제 전달 경로
+
+```text
+웹 → Spring에서 업로드 URL 발급 → S3에 사진 PUT
+웹 → Spring 분석 요청(photoIds / groupId)
+Spring → DB의 originalUrl·등록 얼굴 URL·jobId를 Python으로 HTTP POST
+Python → URL로 이미지 다운로드 → 로컬 모델 추론 → Redis에 진행률 저장
+Python → 처리 완료 시 HTTP 응답 → Spring에서 결과 DB 반영
+Spring → Redis 상태를 1초마다 조회 → SSE로 웹에 전달
+```
+
+근거: `features/image-upload/api/imageUploadApi.ts`, `features/photo-gallery/api/aiAnalysisApi.ts`, `VisionAIService.java`, `ImageRequest.java`, `PhotoAnalysisService.java`, `PhotoJobProgressService.java`, Python `app.py`, `utils.py`, `job_status.py`.
+
+Python의 실행 주소를 `VISION_AI_URL`로 받으므로 별도 GPU PC에 놓는 구조와 맞는다. Python은 S3 SDK로 이미지를 받는 대신 전달받은 URL에 HTTP GET을 한다. 이 흐름과 S3 → SQS → 썸네일 이벤트 처리는 구분된다. 현재 코드에서 polling하는 것은 Spring의 Redis 진행률 조회다. Python의 Flask 요청은 추론이 끝날 때까지 응답을 유지하며, Spring의 비동기 호출만으로 내구성 있는 작업 큐가 생기는 것은 아니다.
+
+분리 자체는 유지할 만하다. Java API와 Python 모델 의존성·GPU 환경을 나눌 수 있고, 사진 바이너리를 Spring과 Python 사이에 다시 중계하지 않아도 된다. 홈서버 복구에서도 S3를 없애더라도 **파일의 식별자/접근 경로를 전달하는 계약**은 유지할 수 있다. 같은 머신이면 공유 볼륨, 별도 AI PC면 내부망/Tailscale에서 접근 가능한 제한된 다운로드 URL이 후보이며, 배치 위치 확인 전 하나로 확정하지 않는다.
+
+먼저 처리할 문제:
+
+- `PhotoAnalysisService`의 HTTP 실패 경로는 로그만 남긴다. Python에 접속하지 못하면 Redis 작업이 STARTED에 머물 수 있다. 타임아웃·FAILED 기록·재시도 규칙을 먼저 추가해야 한다.
+- Python이 Redis에 COMPLETED를 쓴 다음 Spring이 HTTP 응답을 받아 DB에 반영하므로, UI가 완료를 먼저 볼 가능성이 있다. 클라이언트가 보는 완료는 결과 DB 반영 후에 확정하는 것이 안전하다.
+- Python의 temp 폴더가 작업 간 공유되며 파일명도 사진/사용자 ID 기반이고, 작업 끝에 폴더 전체를 정리한다. 동시 작업 시 충돌·삭제 경합 가능성이 있다. jobId별 폴더와 실행 동시성 제한이 필요하다.
+- Spring SSE는 연결마다 cached thread pool 작업을 만들고 Redis를 1초마다 읽는다. 소수 사용자 데모에서는 가능하지만 연결 종료·최대 시간·최대 동시 작업을 제한해야 한다. 초기에는 인증된 상태 조회 polling으로 단순화하는 것도 선택지다. 새 메시지 브로커가 첫 조치는 아니다.
+- 상태 SSE 경로는 SecurityConfig에서 permitAll이고, 컨트롤러는 groupId/jobId 소유 관계를 직접 검증하지 않는다. 작업 조회에도 요청자의 그룹 권한을 확인해야 한다. 새 저장소의 다운로드 URL은 AI PC에서 접근 가능하면서 전체 사진을 공개하지 않도록 설계해야 한다.
+- 잘못된 JSON/초기 실패 시 Python 예외 처리에서 아직 할당되지 않은 `sources`/`result`를 참조할 수 있다. 실패 상태 기록 자체가 실패하는 경로도 검증한다.
+
+별도 AI PC를 껐다 켜도 작업을 보존해야 하는 요구가 생기면 durable job/worker가 다음 단계다. 최소 복구에서는 제한된 동시 실행 + 명시적 실패/재시도부터 시작한다. 모델 버전·입력 사진 ID·jobId·단계별 시간으로 API와 Python 로그를 연결한다.
+
+### 통화 중 온디바이스 AI의 실제 경로
+
+```mermaid
+flowchart LR
+    C[카메라 트랙] --> H["브라우저 MediaPipe 손 랜드마크"]
+    H --> T["TensorFlow.js 정적·동적 제스처 분류"]
+    T --> V["Canvas에 이미지 효과 합성"]
+    C --> V
+    V -->|captureStream / 트랙 교체| M[mediasoup 영상 송출]
+    T --> E[gesture_detect 이벤트]
+    E --> S[Socket.IO 서버]
+    S -->|gesture_detected| R[다른 참가자의 반응 상태]
+```
+
+`gestureProcessor.ts`에 정적 11종과 동적 7종 분류, 투표·유지 시간·쿨다운 로직이 있다. 학습된 `model.json`과 weights도 `frontend/public/models/static-gesture`, `dinamic-gesture`에 추적돼 있다. `dinamic`은 현재 실제 경로이므로 오타처럼 보여도 한쪽만 바꾸면 안 된다.
+
+`FrontendAiProcessor`는 손 인식과 표정 인식을 실행하고 Canvas 효과를 그린 뒤 `captureStream(30)`으로 트랙을 만든다. `mediasoupManager.toggleAIDuringConference`가 이 트랙으로 교체한다. 따라서 영상에 효과를 합성하는 경로가 존재한다. mediasoup 서버가 영상을 추론·합성하는 구조는 아니다. mediasoup는 기본적으로 미디어를 디코딩/트랜스코딩하지 않는 SFU다.
+
+동시에 회의 화면의 callback은 `aiEventHandler`로 이모지 이벤트를 보낸다. `gestureHandler`/`aiGestureHandler`라는 다른 payload 형태의 처리 경로도 같은 이벤트 이름에 연결돼 있다. 통합 전에 단일 이벤트 계약과 송수신 경로를 정해야 한다.
+
+정적 조사에서 확인한 복구 항목:
+
+1. `ConferenceClientPage.tsx:42`가 `setUserInfo("local", ...)`을 호출한다. 수신기는 송신 userId가 자기 ID와 같으면 무시하므로, 같은 코드의 두 클라이언트가 서로를 자기 자신으로 판정할 수 있다. 계정 memberId와 통화 participant/session ID를 구분하고 서버에서 송신자를 확정해야 한다.
+2. `UserVideoCard.tsx:182`의 Redux 반응 overlay JSX가 주석 처리돼 있다. Canvas 합성 경로가 남아 있으므로 화면 효과 전체가 없다고 단정할 수는 없지만, 이벤트 수신만으로 카드 이모지가 표시된다고 볼 수 없다.
+3. `aiEventHandler.ts`는 `gesture_detected`를 구독하지만 cleanup에서 `gesture_detect`를 해제한다. 재입장 시 리스너 중복 가능성이 있으며 connect/disconnect 전체 해제로 다른 핸들러도 영향받을 수 있다. 등록한 함수만 같은 이벤트명으로 해제해야 한다.
+4. `GestureRecognizer`를 추가 로드하지만 실제 제스처 추론 경로는 HandLandmarker + TF.js 모델을 사용한다. Recognizer는 생성·종료 외 추론 호출이 확인되지 않아 제거 후보이다. 먼저 동작 비교 후 정리한다.
+5. WASM이 `@latest` CDN을 참조한다. npm 패키지와 WASM·모델 버전을 고정하고 캐시/로드 실패 시 기본 통화를 계속할 수 있어야 한다.
+6. 추론 간격은 이미 100ms(목표 약 10fps)로 제한돼 있다. 모든 프레임을 추론한다고 판단하면 안 된다. 다만 HandLandmarker는 메인 스레드에서 동기 실행되고 감정 분석은 매번 Canvas/ImageData를 만든다. Worker 이동과 입력 크기 축소는 실제 기기 측정 후 결정한다.
+7. 30프레임 동적 시퀀스, 2초 정적 유지·5초 쿨다운, 별도 핸들러의 3초 쿨다운과 회의 화면의 다른 confidence 기준이 섞여 있다. 연산 최적화 외에 반응까지 걸리는 시간·오탐·중복 표시를 함께 측정해야 한다.
+8. 표정 감지 후 프레임을 캡처해 Redux에 넣는 경로도 존재한다. 회의 callback이 이를 덮어쓰는 부분이 있어 적용 경로를 구분해야 한다. 제스처 복구 과정에서 자동 캡처를 무조건 활성화하지 않고, 명시적으로 선택한 기능에 한해 저장·전송 범위를 정한다.
+
+### 유지할 설계와 단순화 방향
+
+- 사진의 무거운 분석은 Python에 유지하고, 실시간 손동작은 클라이언트에서 처리한다. 통화 영상을 분석 서버로 추가 전송하는 설계는 도입하지 않는다.
+- 이모지 반응만 필요하다면 원본 영상 송출 + 검증된 작은 반응 이벤트 + 각 클라이언트 UI 표시가 우선 후보이다. Canvas 전체 영상 합성은 얼굴 필터나 영상 자체에 효과를 남길 요구가 있을 때만 켠다. Android가 아직 온디바이스 추론을 하지 못해도 같은 반응 이벤트를 받아 표시할 수 있다.
+- 기존 Canvas 효과를 바로 제거하지 않는다. 원형 시연과 동작 비교를 한 후 제품이 원하는 표현을 선택한다. 영상 합성은 수신 측 별도 UI가 없어도 보이는 장점이 있고, 이벤트 표현은 클라이언트별 구현과 만료/중복 처리가 필요한 차이가 있다.
+- 서버는 인증된 참가자·방 기준으로 이벤트를 재구성하고 허용된 reaction 종류·빈도를 확인한다. 사용자 ID/roomId를 payload 값만으로 신뢰하지 않는다.
+- 성능 통과 기준은 아직 수치로 확정하지 않는다. AI on/off의 통화 fps·추론 p95·반응 지연·CPU/GPU·메모리 증가를 비교하고, AI 켜기/끄기·재입장·카메라 변경·모델 로드 실패에도 통화가 유지되는지 확인한다.
+- 웹 모델 JSON과 weights의 짝·버전/해시, Android 이벤트 payload, Python 요청/응답을 작은 CI 계약 검사 대상으로 삼는다. 실제 두 기기 인식/영상 검증을 대체하지는 않는다.
+
+추가 공식 근거: [MediaPipe Web 동기 추론과 Worker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/web_js), [mediasoup SFU 특성](https://mediasoup.org/documentation/overview/), [TensorFlow.js 메모리 관리](https://www.tensorflow.org/js/guide/platform_environment).
