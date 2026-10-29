@@ -55,14 +55,28 @@ Client ID와 Secret은 `backend/.env.local`의 `GOOGLE_CLIENT_ID`, `GOOGLE_CLIEN
 - 실제 HTTP로 합성 테스트 계정의 그룹 생성·업로드 URL 발급·PNG PUT 204·원본 바이트 일치·JPEG 썸네일 조회 성공. 변조한 읽기 서명은 403. Google 로그인 검증과 구분하는 테스트 fixture이며 로그인 우회 API는 추가하지 않았다.
 - `LocalImageStorageTest` 4개, `LocalFileControllerTest` 3개, 기존 `PhotoUploadServiceTest` 3개 통과.
 - 웹 `next build` 성공. 기존 설정에서 build 중 lint를 생략하므로 전체 lint 통과를 뜻하지 않는다.
-- 실제 Google Client ID/Secret 설정 후 Google 인증 진입 302, 정확한 callback, OAuth 세션 쿠키 발급 확인. Chrome의 실제 계정 선택 화면까지 진입. 로그인 완료·회원 저장은 사용자 동의 후 확인할 항목이다.
-- 최신 추가된 삭제 URL 차단과 로그 마스킹은 소스·테스트/JAR 빌드에 반영했다. Google 동의를 기다리는 동안 인증 세션을 보존하기 위해 실행 중 API JAR는 재시작하지 않았다. 현재 로그인 검증이 끝나면 최신 JAR로 교체해 재검증한다.
+- 사용자가 실제 Google 로그인·동의를 완료했다. Google 회원 1명 저장, `/api/members/me` 200과 그룹 목록 200을 확인했다. 테스트 fixture와 구분되는 실제 OAuth 왕복 검증이다.
+- 최신 JAR로 API를 재시작했고, 기존 원본 PNG와 JPEG 썸네일이 그대로 200으로 조회돼 디스크/DB/서명 설정의 유지도 확인했다.
+- 실제 로그인 계정으로 썸네일을 선택하지 않고 `복구 테스트` 그룹을 생성했다(그룹 50). 그룹 상세 화면에 그룹명·멤버 1명이 표시됐다. 테스트 그룹은 로컬 DB에 남겨 두었다.
+- 이 과정에서 기본 SVG placeholder를 업로드해 400이 나던 웹 코드를 수정했다. 선택한 사진만 업로드하고, 기본 이미지는 화면에서 표시한다. 타입 검사·웹 build 성공, 변경 파일 lint Error 0/Warning 2(img 권고) 확인.
+- 의존성 업데이트 전에 열려 있던 로컬 탭에 이전 번들이 남아 일시적 module 오류가 있었고, 새로고침 후 새 웹 코드로 정상 그룹 화면을 확인했다.
 
 ## Vercel Preview와 로컬 API
 
-Vercel의 `fe-keepick` 프로젝트는 현재 Git 저장소 연결이 없다. production은 변경하지 않았다. 복구 브랜치 지정 Preview 환경 변수 생성은 Git 연결 부재로 400을 반환했다. 브랜치 제한을 제거한 Preview 전용 설정 요청은 자동 승인 검토에서 거절돼 적용하지 않았다. 재시도·다른 경로를 이용한 변경도 하지 않았다.
+Vercel의 `fe-keepick` 프로젝트는 현재 Git 저장소 연결이 없다. 예전 루트 `.gitlab-ci.yml`에서 GitLab CI가 Vercel CLI로 production을 배포했던 구조다. 이번 Preview는 GitHub 자동 연결을 추가하지 않고 승인된 커밋의 파일을 API로 직접 전달했다. 이후 GitHub push만으로 자동 배포되는 상태는 아니다.
 
-제안한 Preview 변수는 아래 3개이며 전부 공개 가능한 웹 설정이다. production을 대상으로 하지 않는다.
+처음 브랜치별 변수 생성은 Git 미연결로 실패했고, 일반 Preview 변수 설정도 자동 승인 검토에 막혔다. 사용자의 명시적 승인과 공식 API에서 `gitBranch`가 선택 사항인 점을 확인한 뒤 `gitBranch: null`로 Preview에만 아래 3개 변수를 생성했다. GitHub 소스 기반 배포는 Vercel 계정의 GitHub 연결이 없어 실패해, 파일 직접 전달 방식으로 완료했다.
+
+검증 커밋 `00db53f`는 빌드 후 `VULNERABLE_NEXTJS_VERSION`으로 거절됐다. 이에 Next 15.5.28, React/React DOM 19.1.10, eslint-config-next 15.5.28로 패치하고 재검증했다. Next 16으로 전환하지 않았다. [2026-10-14 공식 보안 권고](https://nextjs.org/blog/nextjs-security-update-october-14-2026).
+
+- 성공 Preview: https://fe-keepick-gcvmhuf0y-woongyee.vercel.app
+- 배포 ID: `dpl_5Cv5ev1f1Rdd7uAMNZs7pAeRNSLG`, READY. API의 `target: staging`은 이번 비운영 Preview 대상이다.
+- 배포 커밋: `b5c3fd4d6a8278f0cd28e583c4365f126f564ae2` (그룹 SVG 수정과 필수 보안 패치 포함).
+- HTTP 200/Keepick title 및 실제 배포 JS 27개를 확인했고 localhost API와 로컬 이미지 모드가 포함돼 있다.
+- production `fe-keepick.vercel.app`은 여전히 이전 배포 `dpl_DZpN5CCUakrUZXMjsLs9YKfZgCM3`다. 승격하거나 운영 환경 변수를 변경하지 않았다.
+- 배포 대상에서 개발용 `frontend/certs/server.key`, `server.cert`를 제외했다. 전송된 대형 공개 자산 64개는 기존 공개 Keepick 사이트와 바이트 해시가 같은 것을 확인했다. 개인 로컬 사진·환경 파일은 배포하지 않았다.
+
+적용한 Preview 변수는 아래 3개이며 전부 공개 가능한 웹 설정이다. production을 대상으로 하지 않는다.
 
 ```text
 NEXT_PUBLIC_API_BASE_URL=http://localhost:18080
@@ -70,7 +84,9 @@ NEXT_PUBLIC_AUTH_PROVIDERS=google
 NEXT_PUBLIC_LOCAL_DEMO=true
 ```
 
-이 방식에서 localhost는 방문자의 PC다. 개발 PC에서만 시험하는 Preview이며 다른 기기용 공개 데모 주소가 아니다. Chrome의 로컬 네트워크 접근 정책에 따라 허용 단계가 필요할 수 있다. Preview URL을 확정하면 해당 origin을 API의 `LOCAL_ALLOWED_ORIGINS`에 정확히 추가하고 재시작해야 한다. 다른 기기에서도 접속하려면 이후 홈서버 또는 명시적으로 구성한 HTTPS 터널 주소로 API URL과 Google callback을 함께 바꾼다.
+이 방식에서 localhost는 방문자의 PC다. 개발 PC에서만 시험하는 Preview이며 다른 기기용 공개 데모 주소가 아니다. Chrome의 로컬 네트워크 접근 정책에 따라 허용 단계가 필요할 수 있다. 성공 Preview URL과 별칭 `https://fe-keepick-woongyee.vercel.app`을 API의 `LOCAL_ALLOWED_ORIGINS`에 정확히 추가하고 재시작했다. 성공 Preview origin으로 CORS preflight 200, OAuth state의 return origin 및 localhost callback을 확인했다. 다른 기기에서도 접속하려면 이후 홈서버 또는 명시적으로 구성한 HTTPS 터널 주소로 API URL과 Google callback을 함께 바꾼다.
+
+브라우저의 Google 자동 조작은 승인 검토 사용량 제한으로 실행되지 않아 사용자가 직접 로그인했다. 완료 후 로컬 화면과 그룹 생성은 브라우저에서 확인했다. Preview의 실제 브라우저 네트워크 권한/로그인 전체 경로는 HTTP·CORS 검사와 구분해 추가 확인해야 한다.
 
 `NEXT_PUBLIC_LOCAL_DEMO=true`에서는 Next 이미지 최적화를 끈다. Vercel 서버에서 개발 PC localhost 이미지를 가져올 수 없으므로 브라우저가 서명 URL을 직접 읽도록 하는 점검 모드다. 일반 production 설정에서는 기존 이미지 최적화를 유지한다.
 
