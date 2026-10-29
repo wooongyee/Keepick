@@ -177,8 +177,7 @@ public class GroupInvitationServiceTest extends RedisTestContainer {
 
         // when
         String link = groupInvitationService.createInvitationLink(group.getId());
-        System.out.println("link = " + link);
-        String encodedToken = link.substring((frontendUrl+"/invite/").length());
+        String encodedToken = link.substring(link.lastIndexOf("/invite/") + "/invite/".length());
 
         // then
         String inviteToken = decodeInviteToken(encodedToken);
@@ -197,7 +196,7 @@ public class GroupInvitationServiceTest extends RedisTestContainer {
         groupRepository.save(group);
 
         String link = groupInvitationService.createInvitationLink(group.getId());
-        String encodedToken = link.substring((frontendUrl+"/invite/").length());
+        String encodedToken = link.substring(link.lastIndexOf("/invite/") + "/invite/".length());
         String inviteToken = decodeInviteToken(encodedToken);
 
         // when
@@ -213,13 +212,11 @@ public class GroupInvitationServiceTest extends RedisTestContainer {
     }
 
     String decodeInviteToken(String encoded) {
-        System.out.println("encoded = " + encoded);
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             byte[] decodedBytes = Base64.getUrlDecoder().decode(encoded);
             String json = new String(decodedBytes, StandardCharsets.UTF_8);
             Map<String, String> decoded = objectMapper.readValue(json, Map.class);
-            System.out.println("decoded = " + decoded);
             return decoded.get("token");
         } catch (Exception e) {
             throw new RuntimeException("초대토큰 디코딩 실패", e);

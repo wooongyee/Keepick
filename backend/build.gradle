@@ -61,8 +61,8 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testImplementation 'com.h2database:h2' // 테스트용 h2 db
 	testImplementation 'org.mockito:mockito-core:5.8.0' // 테스트 Mockito Core
-	testImplementation "org.testcontainers:testcontainers:1.21.3" // Test Container 의존성
-	testImplementation "org.testcontainers:junit-jupiter:1.17.3"
+	testImplementation "org.testcontainers:testcontainers:1.21.4" // Test Container 의존성
+	testImplementation "org.testcontainers:junit-jupiter:1.21.4"
 
 	// swagger
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.5'

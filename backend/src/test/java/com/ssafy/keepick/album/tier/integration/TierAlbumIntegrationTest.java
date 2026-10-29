@@ -216,8 +216,8 @@ class TierAlbumIntegrationTest extends BaseTest {
     }
 
     @Test
-    @DisplayName("티어 앨범 수정 성공 - 빈 이름")
-    void updateTierAlbum_Success_EmptyName() throws Exception {
+    @DisplayName("티어 앨범 수정 거절 - 빈 이름")
+    void updateTierAlbum_RejectsEmptyName() throws Exception {
         // given
         Long groupId = 1L;
         Long tierAlbumId = 1L;
@@ -225,16 +225,13 @@ class TierAlbumIntegrationTest extends BaseTest {
             .name("") // 빈 이름
             .build();
 
-        when(tierAlbumService.updateTierAlbum(eq(groupId), eq(tierAlbumId), any(UpdateTierAlbumRequest.class)))
-            .thenReturn(tierAlbumDto);
-
         // when & then
         mockMvc.perform(put("/api/groups/{groupId}/tier-albums/{tierAlbumId}", groupId, tierAlbumId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value(200))
-            .andExpect(jsonPath("$.data").isEmpty());
+            .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verify(tierAlbumService, org.mockito.Mockito.never())
+            .updateTierAlbum(eq(groupId), eq(tierAlbumId), any(UpdateTierAlbumRequest.class));
     }
 
     @Test
