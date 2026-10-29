@@ -124,3 +124,35 @@ test("disconnect removes the participant and notifies the remaining peer", async
   assert.equal(left.id, bId);
   assert.equal((await roomInfo(a, roomId)).peersCount, 1);
 });
+
+test("leaving producer removes its consumers from the remaining peer", async (t) => {
+  const roomId = "media-cleanup-" + randomUUID();
+  const a = await client(t), b = await client(t);
+  const capabilities = await join(a, roomId, "Sender A");
+  await join(b, roomId, "Receiver B");
+  const send = await reply(a, "producer_transport_created",
+    () => a.emit("create_producer_transport", { roomId }));
+  const receive = await reply(b, "consumer_transport_created",
+    () => b.emit("create_consumer_transport", { roomId }));
+  const producer = await reply(a, "producer_created", () => a.emit("produce", {
+    roomId, transportId: send.id, kind: "audio",
+    rtpParameters: {
+      codecs: [{ mimeType: "audio/opus", payloadType: 111, clockRate: 48000, channels: 2 }],
+      encodings: [{ ssrc: 12345678 }], rtcp: { cname: "media-cleanup-test" },
+    },
+  }));
+  await reply(b, "consumer_created", () => b.emit("consume", {
+    roomId, transportId: receive.id, producerId: producer.id,
+    rtpCapabilities: capabilities.rtpCapabilities,
+  }));
+  assert.equal((await roomInfo(b, roomId)).peers.find(p => p.id === b.id).consumersCount, 1);
+  await reply(a, "left_room", () => a.emit("leave_room"));
+  // The worker delivers producer-close asynchronously to the consumer.
+  let remaining;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    remaining = (await roomInfo(b, roomId)).peers.find(p => p.id === b.id).consumersCount;
+    if (remaining === 0) break;
+    await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.equal(remaining, 0);
+});
