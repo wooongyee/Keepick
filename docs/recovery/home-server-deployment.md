@@ -16,13 +16,20 @@ flowchart LR
   API --> MySQL
   API --> Redis
   API --> Images[로컬 이미지 볼륨]
-  Browser <-->|공유기 TCP/UDP 40000–40099| Realtime
 ```
 
-Cloudflare tunnel은 HTTP와 WebSocket을 전달한다. 실제 영상·음성은 공유기 포트 전달을
-통해 mediasoup에 직접 연결된다. LAN 후보도 제공한다. 엄격한 사내망·모바일망에서
-직접 연결이 차단될 경우 TURN 추가 검토가 필요하다. 공인 IP가 바뀌면 홈서버
-`shared/runtime.env`의 `MEDIA_PUBLIC_IP`를 갱신하고 재배포한다.
+Cloudflare tunnel은 HTTP와 WebSocket을 전달한다. 공유기 포트 전달과 Windows 미디어
+인바운드 규칙은 기본 배포에 포함하지 않는다. mediasoup 미디어 포트는 Docker 내부에만
+남겨 둔다. 따라서 이 구성만으로 외부 브라우저 영상통화가 된다고 간주하지 않는다.
+웹·로그인·소켓 배포를 먼저 검증하고, 공개 미디어 경로는 별도 연결 실험으로 검증한다.
+
+검토 후보는 홈서버 coturn + Tailscale Funnel TLS 중계다. 브라우저에서 TURN over TLS로
+들어와 홈서버 내부 mediasoup에 도달하는 구성이지만, 아직 동작·대역폭을 검증하지 않았다.
+Funnel은 TLS TCP 전달을 지원하며 비설정형 대역폭 제한이 있다. 단순히 외부 TURN 주소만
+추가하면 사설망 SFU에 도달한다고 가정하지 않는다.
+
+참고: [Cloudflare 프로토콜](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/routing-to-tunnel/protocols/),
+[Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel).
 
 Google OAuth callback:
 `https://keepick.woongyee.com/api/login/oauth2/code/google`
