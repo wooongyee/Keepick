@@ -1,0 +1,10 @@
+const {test}=require('node:test');const assert=require('node:assert/strict');
+const {createAccess}=require('../dist/domain/auth/access');
+const socket=token=>({handshake:{auth:{token}},data:{}});
+const connect=(access,client)=>new Promise(resolve=>access.authenticate(client,resolve));
+const response=data=>new Response(JSON.stringify({data}),{status:200,headers:{'Content-Type':'application/json'}});
+test('public realtime fails closed without its internal API',()=>assert.throws(()=>createAccess(true,''),/API_INTERNAL_URL/));
+test('local test mode leaves existing synthetic clients usable',async()=>{const a=createAccess(false,'');assert.equal(await connect(a,socket()),undefined);await a.authorizeRoom(socket(),'fixture');});
+test('missing/expired credentials are rejected',async()=>{const a=createAccess(true,'http://api',async()=>new Response('',{status:401}));assert.ok(await connect(a,socket()));assert.ok(await connect(a,socket('expired')));});
+test('authenticated identity and accepted groups come from Spring',async()=>{const urls=[];const a=createAccess(true,'http://api',async(url,options)=>{urls.push(String(url));assert.equal(options.headers.Authorization,'Bearer valid');return urls.length===1?response({memberId:4,nickname:'Member'}):response([{groupId:8,invitationStatus:'ACCEPTED'}]);});const s=socket('valid');assert.equal(await connect(a,s),undefined);assert.equal(s.data.keepick.memberId,4);await a.authorizeRoom(s,'8');await assert.rejects(a.authorizeRoom(s,'9'));await assert.rejects(a.authorizeRoom(s,'fixture'));});
+test('internal API failures never grant access',async()=>{const a=createAccess(true,'http://api',async()=>{throw Error('offline');});assert.ok(await connect(a,socket('valid')));});

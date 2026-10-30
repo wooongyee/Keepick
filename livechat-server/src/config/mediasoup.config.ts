@@ -1,13 +1,22 @@
 import { RtpCodecCapability } from "mediasoup/node/lib/rtpParametersTypes";
+import { portFromEnv } from "./env";
+
+const rtcMinPort = portFromEnv("MEDIASOUP_MIN_PORT", 10000);
+const rtcMaxPort = portFromEnv("MEDIASOUP_MAX_PORT", 10100);
+if (rtcMaxPort < rtcMinPort) {
+  throw new Error("MEDIASOUP_MAX_PORT must be at least MEDIASOUP_MIN_PORT");
+}
 
 export const mediasoupConfig = {
   worker: {
     logLevel: "warn" as const,
-    rtcMinPort: 10000,
-    rtcMaxPort: 10100,
+    rtcMinPort,
+    rtcMaxPort,
   },
   webRtcTransport: {
-    listenIps: [{ ip: "0.0.0.0", announcedIp: "192.168.0.7" }],
+    listenIps: [process.env.MEDIASOUP_ANNOUNCED_IP ?? "127.0.0.1",
+      ...(process.env.MEDIASOUP_ADDITIONAL_ANNOUNCED_IPS ?? "").split(",").map(ip => ip.trim()).filter(Boolean),
+    ].map(announcedIp => ({ ip: process.env.MEDIASOUP_LISTEN_IP ?? "127.0.0.1", announcedIp })),
     enableUdp: true,
     enableTcp: true,
     preferUdp: true,

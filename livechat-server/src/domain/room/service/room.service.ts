@@ -60,6 +60,7 @@ export class RoomService {
     if (peer) {
       this.peerManager.cleanupPeer(peer);
       room.peers.delete(socketId);
+      peer.socket.leave(room.id);
 
       // 룸이 비어있으면 삭제
       if (room.peers.size === 0) {

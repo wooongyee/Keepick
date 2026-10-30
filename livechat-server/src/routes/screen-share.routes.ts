@@ -1,52 +1,37 @@
-// src/routes/screen-share.routes.ts
+import { Router, type RequestHandler } from "express";
 
-import { Router } from 'express';
-import { logger } from '../utils/logger';
-import { screenShareService } from '../domain/screenshare/factory/screen-share.factory';
-import { ScreenShareController } from '../domain/screenshare/controller/screen-share.controller';
+export interface ScreenShareControllerHandlers {
+  startScreenShare: RequestHandler;
+  stopScreenShare: RequestHandler;
+  createConsumer: RequestHandler;
+  getActiveScreenShares: RequestHandler;
+  cleanupPeer: RequestHandler;
+  cleanupRoom: RequestHandler;
+  debugRoom: RequestHandler;
+}
 
-export function screenShareRouter(): Router {
-  console.log('Creating screen share routes...');
-  logger.info('Creating screen share routes');
-
+/**
+ * Preserve the existing REST paths for screen-share recovery.
+ * The original ScreenShareController is missing from the repository. Keep this
+ * router unmounted until that controller is restored, then inject it here.
+ */
+export function screenShareRouter(controller: ScreenShareControllerHandlers): Router {
   const router = Router();
-  const screenShareController = new ScreenShareController(screenShareService);
 
-  // 화면 공유 시작
-  router.post('/start', screenShareController.startScreenShare);
-
-  // 화면 공유 중지
-  router.post('/stop', screenShareController.stopScreenShare);
-
-  // Consumer 생성
-  router.post('/create-consumer', screenShareController.createConsumer);
-
-  // 활성 화면 공유 목록 조회
-  router.get('/active/:roomId', screenShareController.getActiveScreenShares);
-
-  // 피어 정리
-  router.delete('/cleanup/:roomId/:peerId', screenShareController.cleanupPeer);
-
-  // 방 정리
-  router.delete('/room/:roomId', screenShareController.cleanupRoom);
-
-  // 디버깅
-  router.get('/debug/:roomId', screenShareController.debugRoom);
-
-  // 헬스체크
-  router.get('/health', (req, res) => {
-    console.log('Screen share health check called');
-    logger.info('Screen share health check called', { ip: req.ip });
-
+  router.post("/start", controller.startScreenShare.bind(controller));
+  router.post("/stop", controller.stopScreenShare.bind(controller));
+  router.post("/create-consumer", controller.createConsumer.bind(controller));
+  router.get("/active/:roomId", controller.getActiveScreenShares.bind(controller));
+  router.delete("/cleanup/:roomId/:peerId", controller.cleanupPeer.bind(controller));
+  router.delete("/room/:roomId", controller.cleanupRoom.bind(controller));
+  router.get("/debug/:roomId", controller.debugRoom.bind(controller));
+  router.get("/health", (_req, res) => {
     res.status(200).json({
       success: true,
-      message: 'Screen share service is healthy',
+      message: "Screen share service is healthy",
       timestamp: new Date().toISOString(),
     });
   });
-
-  console.log('Screen share routes created successfully');
-  logger.info('Screen share routes created successfully');
 
   return router;
 }

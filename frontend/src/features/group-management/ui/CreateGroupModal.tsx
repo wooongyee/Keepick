@@ -26,13 +26,6 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
   const { createGroup } = useGroupManagement()
   const { uploadImage, isUploading } = useImageUpload()
 
-  // 기본 placeholder SVG 파일을 생성하는 함수
-  const createPlaceholderFile = async (): Promise<File> => {
-    const response = await fetch('/placeholder/photo-placeholder.svg')
-    const svgBlob = await response.blob()
-    return new File([svgBlob], 'group-thumbnail-placeholder.svg', { type: 'image/svg+xml' })
-  }
-
   // 썸네일 파일 선택 핸들러
   const handleThumbnailSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -77,23 +70,16 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
     try {
       let thumbnailUrl: string | undefined = undefined
 
-      // 썸네일 파일이 있으면 업로드, 없으면 기본 placeholder 업로드
+      // 선택한 사진만 업로드하고 기본 이미지는 화면에서 표시합니다.
       if (thumbnailFile) {
         console.log('썸네일 이미지 업로드 시작...')
         const uploadResult = await uploadImage(thumbnailFile)
         thumbnailUrl = uploadResult.publicUrl
         console.log('썸네일 업로드 완료:', thumbnailUrl)
-      } else {
-        // 기본 placeholder SVG를 업로드
-        console.log('기본 썸네일 placeholder 업로드 시작...')
-        const placeholderFile = await createPlaceholderFile()
-        const uploadResult = await uploadImage(placeholderFile)
-        thumbnailUrl = uploadResult.publicUrl
-        console.log('기본 썸네일 업로드 완료:', thumbnailUrl)
       }
 
       // 그룹 생성 요청 데이터 준비
-      const requestData: any = {
+      const requestData: Parameters<typeof createGroup.mutateAsync>[0] = {
         name: groupName.trim()
       }
 
@@ -101,8 +87,7 @@ export default function CreateGroupModal({ isOpen, onClose }: CreateGroupModalPr
         requestData.description = groupDescription.trim()
       }
 
-      // 썸네일 URL 항상 설정 (기본 placeholder 또는 사용자가 업로드한 이미지)
-      requestData.groupThumbnailUrl = thumbnailUrl
+      if (thumbnailUrl) requestData.groupThumbnailUrl = thumbnailUrl
 
       console.log('그룹 생성 요청 데이터:', requestData)
 

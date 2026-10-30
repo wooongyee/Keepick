@@ -25,6 +25,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
@@ -164,10 +165,10 @@ class TierAlbumServiceTest extends BaseTest {
     void getTierAlbumListWithPaging_Success() {
         // given
         Long groupId = 1L;
-        int page = 1;
+        int page = 0;
         int size = 10;
         List<TierAlbum> albums = Arrays.asList(tierAlbum);
-        Pageable pageable = PageRequest.of(0, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<TierAlbum> albumPage = new PageImpl<>(albums, pageable, 1L);
 
         when(tierAlbumRepository.findByGroupIdWithPaging(groupId, pageable)).thenReturn(albumPage);
@@ -194,9 +195,9 @@ class TierAlbumServiceTest extends BaseTest {
     void getTierAlbumListWithPaging_EmptyResult() {
         // given
         Long groupId = 1L;
-        int page = 1;
+        int page = 0;
         int size = 10;
-        Pageable pageable = PageRequest.of(0, size);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<TierAlbum> albumPage = new PageImpl<>(Arrays.asList(), pageable, 0L);
 
         when(tierAlbumRepository.findByGroupIdWithPaging(groupId, pageable)).thenReturn(albumPage);
@@ -217,10 +218,10 @@ class TierAlbumServiceTest extends BaseTest {
     void getTierAlbumListWithPaging_PagingCalculation() {
         // given
         Long groupId = 1L;
-        int page = 3;
+        int page = 2;
         int size = 5;
         List<TierAlbum> albums = Arrays.asList(tierAlbum);
-        Pageable pageable = PageRequest.of(2, size); // page 3은 0-based로 2
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending()); // API uses zero-based pages
         Page<TierAlbum> albumPage = new PageImpl<>(albums, pageable, 15L);
 
         when(tierAlbumRepository.findByGroupIdWithPaging(groupId, pageable)).thenReturn(albumPage);

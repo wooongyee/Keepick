@@ -67,7 +67,7 @@ public class ThumbnailService {
         Long ImageId = Long.parseLong(FileUtils.extractImageNumber(objectKey));
         Photo photo = photoRepository.findById(ImageId)
                 .orElseThrow(() -> new BaseException(ErrorCode.PHOTO_NOT_FOUND));
-        String thumbnailUrl = FileUtils.generatePublicUrl(bucketName, region, objectKey);
+        String thumbnailUrl = imageService.publicUrl(objectKey);
         photo.uploadThumbnail(thumbnailUrl);
         photoRepository.save(photo);
     }

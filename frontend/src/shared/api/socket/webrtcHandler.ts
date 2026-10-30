@@ -1,6 +1,7 @@
 // src/shared/api/socket/webrtcHandler.ts
 
 import { Socket } from "socket.io-client";
+import { clearUserReaction } from "@/entities/emoji-reaction/model/slice";
 import { AppDispatch } from "@/shared/config/store";
 import {
   RtpCapabilities,
@@ -68,6 +69,7 @@ class WebRTCHandler {
     this.socket.on("user_left", (data: UserLeftData) => {
       console.log(`👋 [WebRTCHandler] User left: ${data.id}`);
       dispatch(removeUser(data.id));
+      dispatch(clearUserReaction(data.id));
       mediasoupManager.removePeer(data.id);
     });
 
@@ -247,7 +249,8 @@ class WebRTCHandler {
     socketManager.request("resume_consumer", "consumer_resumed", data);
 
   public closeProducer = (data: { producerId: string }): Promise<void> =>
-    socketManager.request("close_producer", "producer_closed", data);
+    socketManager.request<{ producerId: string }>("close_producer", "producer_closed_success", data, 3000,
+      response => response?.producerId === data.producerId).then(() => {});
 
   private getCurrentRoomId(): string {
     const path = window.location.pathname;

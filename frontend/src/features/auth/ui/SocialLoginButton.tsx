@@ -54,7 +54,9 @@ export default function SocialLoginButton({
 }: SocialLoginButtonProps) {
   const [isHovered, setIsHovered] = React.useState(false)
   
-  const providers: SocialProvider[] = ["google", "kakao", "naver"]
+  const enabledProviders = process.env.NEXT_PUBLIC_AUTH_PROVIDERS?.split(",")
+  const providers = (["google", "kakao", "naver"] as SocialProvider[])
+    .filter((provider) => !enabledProviders || enabledProviders.includes(provider))
   
   const handleProviderClick = (provider: SocialProvider) => {
     if (disabled) return

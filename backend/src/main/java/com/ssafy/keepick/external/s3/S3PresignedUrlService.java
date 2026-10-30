@@ -1,5 +1,7 @@
 package com.ssafy.keepick.external.s3;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 import com.ssafy.keepick.external.s3.dto.S3ImagePathDto;
 import com.ssafy.keepick.global.exception.BaseException;
 import com.ssafy.keepick.global.exception.ErrorCode;
@@ -18,6 +20,7 @@ import java.time.Duration;
 import java.util.List;
 
 @Slf4j
+@ConditionalOnProperty(name = "app.storage.type", havingValue = "s3", matchIfMissing = true)
 @Service
 @RequiredArgsConstructor
 public class S3PresignedUrlService {

@@ -153,6 +153,9 @@ export class MediaEventsHandler {
       });
 
       peer.consumers.set(consumer.id, consumer);
+      // Closing the source producer also closes its consumers in the worker.
+      // Remove those references while the receiving peer stays in the room.
+      consumer.observer.once("close", () => peer.consumers.delete(consumer.id));
 
       const isScreenShare = producerAppData && isScreenShareProducer(producerAppData);
 

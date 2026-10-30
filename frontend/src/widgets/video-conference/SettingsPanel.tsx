@@ -9,8 +9,6 @@ import {
   toggleEmotionDetection,
   toggleBeautyFilter,
 } from "@/entities/video-conference/ai/model/aiSlice";
-import { mediasoupManager } from "@/shared/api/mediasoupManager";
-import { AiSystemConfig } from "@/shared/types/ai.types";
 import {
   XMarkIcon,
   CogIcon,
@@ -61,6 +59,9 @@ const ToggleSwitch = ({
     </div>
     <button
       onClick={onToggle}
+      role="switch"
+      aria-label={label}
+      aria-checked={isOn}
       disabled={disabled}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
         disabled ? "cursor-not-allowed" : "cursor-pointer"
@@ -81,83 +82,19 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
   const aiState = useAppSelector((state) => state.ai);
   const { isCameraOn, isMicOn } = useAppSelector((state) => state.mediaControls);
 
-  // AI 전체 토글 핸들러
-  const handleAiToggle = useCallback(async () => {
-    const newState = !aiState.isAiEnabled;
-    dispatch(setAiEnabled(newState));
-    
-    // 현재 Redux 상태를 기반으로 AiSystemConfig 객체를 생성
-    const configForToggle: Partial<AiSystemConfig> = {
-      gesture: {
-        static: { enabled: aiState.isStaticGestureDetectionEnabled, confidence: 0.7 },
-        dynamic: { enabled: aiState.isDynamicGestureDetectionEnabled, confidence: 0.7 },
-      },
-      emotion: { enabled: aiState.isEmotionDetectionEnabled, confidence: 0.5 },
-      beauty: { ...aiState.beautyFilterConfig, enabled: aiState.isBeautyFilterEnabled },
-    };
+  // ConferenceClientPage owns the asynchronous media transition.
+  const handleAiToggle = useCallback(() => {
+    dispatch(setAiEnabled(!aiState.isAiEnabled));
+  }, [dispatch, aiState.isAiEnabled]);
 
-    try {
-      await mediasoupManager.toggleAIDuringConference(newState, configForToggle);
-    } catch (error) {
-      console.error('AI 기능 전체 토글 중 오류:', error);
-      dispatch(setAiEnabled(!newState)); // 오류 발생 시 Redux 상태 복원
-    }
-  }, [dispatch, aiState]);
-  
-  // 개별 기능 토글 핸들러
-  const handleFeatureToggle = useCallback(async (feature: AiFeature) => {
-    // 현재 상태를 기반으로 새로운 상태를 먼저 계산
-    const newStaticEnabled = feature === 'static' ? !aiState.isStaticGestureDetectionEnabled : aiState.isStaticGestureDetectionEnabled;
-    const newDynamicEnabled = feature === 'dynamic' ? !aiState.isDynamicGestureDetectionEnabled : aiState.isDynamicGestureDetectionEnabled;
-    const newEmotionEnabled = feature === 'emotion' ? !aiState.isEmotionDetectionEnabled : aiState.isEmotionDetectionEnabled;
-    const newBeautyEnabled = feature === 'beauty' ? !aiState.isBeautyFilterEnabled : aiState.isBeautyFilterEnabled;
-
-    // 새로운 설정 객체 생성
-    const newAiConfig: Partial<AiSystemConfig> = {
-      gesture: {
-        static: { enabled: newStaticEnabled, confidence: 0.7 },
-        dynamic: { enabled: newDynamicEnabled, confidence: 0.7 }
-      },
-      emotion: { enabled: newEmotionEnabled, confidence: 0.5 },
-      beauty: { 
-        ...aiState.beautyFilterConfig,
-        enabled: newBeautyEnabled,
-      }
-    };
-
-    // Redux 상태를 낙관적으로 업데이트
+  const handleFeatureToggle = useCallback((feature: AiFeature) => {
     switch (feature) {
       case 'static': dispatch(toggleStaticGestureDetection()); break;
       case 'dynamic': dispatch(toggleDynamicGestureDetection()); break;
       case 'emotion': dispatch(toggleEmotionDetection()); break;
       case 'beauty': dispatch(toggleBeautyFilter()); break;
     }
-
-    // AI 마스터 스위치가 켜져 있을 때만 미디어 서버와 통신
-    if (aiState.isAiEnabled) {
-      try {
-        if (feature === 'beauty') {
-          // 뷰티 필터는 픽셀을 직접 수정하므로 트랙 교체가 필요합니다.
-          await mediasoupManager.toggleAIDuringConference(true, newAiConfig);
-        } else {
-          // 제스처/감정 인식은 설정만 업데이트하여 성능 최적화
-          await mediasoupManager.updateAIConfig(newAiConfig);
-        }
-        console.log(`✅ AI 기능 '${feature}' 토글 성공:`, newAiConfig);
-      } catch (error) {
-        console.error(`❌ AI 기능 '${feature}' 토글 중 오류:`, error);
-        // 오류 발생 시 Redux 상태를 원래대로 복원
-        switch (feature) {
-          case 'static': dispatch(toggleStaticGestureDetection()); break;
-          case 'dynamic': dispatch(toggleDynamicGestureDetection()); break;
-          case 'emotion': dispatch(toggleEmotionDetection()); break;
-          case 'beauty': dispatch(toggleBeautyFilter()); break;
-        }
-      }
-    } else {
-      console.log(`🔄 AI 기능 '${feature}' Redux 상태만 업데이트 (AI 비활성화 상태)`);
-    }
-  }, [dispatch, aiState]);
+  }, [dispatch]);
 
   return (
     <AnimatePresence>
@@ -195,6 +132,9 @@ export const SettingsPanel = ({ isOpen, onClose }: SettingsPanelProps) => {
                   onToggle={handleAiToggle}
                   icon={<StarIcon className="w-4 h-4" />}
                 />
+                {aiState.status === "loading" && <p role="status" className="px-4 text-sm text-[#FCBC34]">AI 준비 중 · 기본 통화는 계속됩니다.</p>}
+                {aiState.error && <p role="alert" className="px-4 text-sm text-red-400">AI 준비 또는 처리에 실패했습니다. 잠시 후 다시 켜 주세요. 기본 영상으로 통화할 수 있습니다.</p>}
+
               </div>
               
               {/* <div className="mb-6 bg-[#222222]/30 rounded-lg p-4">

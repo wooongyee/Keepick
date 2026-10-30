@@ -1,0 +1,30 @@
+package com.ssafy.keepick.core.data.di
+
+import com.ssafy.keepick.core.data.photo.PhotoRepositoryImpl
+import com.ssafy.keepick.core.data.auth.AuthRepositoryImpl
+import com.ssafy.keepick.core.domain.AuthRepository
+import com.ssafy.keepick.core.domain.photo.PhotoRepository
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.components.SingletonComponent
+import javax.inject.Singleton
+
+
+@Module
+@InstallIn(SingletonComponent::class)
+internal interface DataModule {
+
+    @Singleton
+    @Binds
+    fun bindAuthRepository(
+        authRepository: AuthRepositoryImpl
+    ): AuthRepository
+
+    @Singleton
+    @Binds
+    fun bindPhotoRepository(
+        photoRepositoryImpl: PhotoRepositoryImpl
+    ): PhotoRepository
+
+}

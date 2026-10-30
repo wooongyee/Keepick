@@ -180,9 +180,11 @@ export const useLocalScreenShareTrack = () => {
 
 // 🆕 원격 화면 공유 Hook
 export const useRemoteScreenShareTrack = (socketId: string) => {
+  const [version, setVersion] = useState(0);
+  useEffect(() => mediaTrackManager.addScreenShareListener(() => setVersion(value => value + 1)), []);
   const screenTrackInfo = useMemo(() => {
     return socketId ? mediaTrackManager.getRemoteScreenTrack(socketId) : null;
-  }, [socketId]);
+  }, [socketId, version]);
   
   return {
     track: screenTrackInfo?.track || null,

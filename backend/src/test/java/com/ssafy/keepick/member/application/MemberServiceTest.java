@@ -36,6 +36,9 @@ class MemberServiceTest extends BaseTest {
     @Mock
     private MemberRepository memberRepository;
 
+    @Mock
+    private com.ssafy.keepick.external.visionai.VisionAIService visionAIService;
+
     @InjectMocks
     private MemberService memberService;
 
@@ -154,6 +157,8 @@ class MemberServiceTest extends BaseTest {
         String newProfileUrl = "https://cdn.keepick.com/profile/new.png";
         String newIdentificationUrl = "https://example.com/new.jpg";
         MemberUpdateRequest request = new MemberUpdateRequest(newNickname, newProfileUrl, newIdentificationUrl);
+        given(visionAIService.postProfileValidateRequest(any())).willReturn(
+            new com.ssafy.keepick.external.visionai.response.ProfileValidateResponse(true, "", "valid"));
         
         given(testMember.getId()).willReturn(testMemberId);
         given(testMember.getNickname()).willReturn(newNickname);

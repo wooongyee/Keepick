@@ -1,3 +1,5 @@
+import { loadFaceMesh, initializeFaceMesh } from "./faceMeshLoader";
+import { withTimeout } from "./asyncResource";
 // src/shared/api/ai/beautyFilterProcessor.ts
 import { AiSystemConfig } from "@/shared/types/ai.types"; // AiSystemConfig 임포트
 
@@ -49,19 +51,8 @@ export class BeautyFilterProcessor {
         return;
       }
 
-      const mediapipeFaceMesh = await import("@mediapipe/face_mesh");
-      
-      // MediaPipe 모듈이 제대로 로드되었는지 확인
-      if (!mediapipeFaceMesh || !mediapipeFaceMesh.FaceMesh) {
-        throw new Error("MediaPipe FaceMesh module not properly loaded");
-      }
-
-      // 수정: 가져온 FaceMesh 클래스를 직접 사용하여 인스턴스를 생성합니다.
-      this.faceMesh = new mediapipeFaceMesh.FaceMesh({
-          locateFile: (file) => {
-              return `${wasmPath}/${file}`;
-          },
-      });
+      const FaceMesh = await loadFaceMesh();
+      this.faceMesh = new FaceMesh({ locateFile: file => `${wasmPath}/${file}` });
 
       this.faceMesh.setOptions({
         maxNumFaces: 1, // 뷰티 필터는 일반적으로 단일 얼굴에 적용
@@ -76,11 +67,12 @@ export class BeautyFilterProcessor {
           this._faceMeshResultResolver = null; // Promise가 한 번 resolve되면 초기화
         }
       });
+      await initializeFaceMesh(this.faceMesh);
       console.log("BeautyFilterProcessor: Face Mesh initialized for beauty.");
     } catch (error) {
       console.error("BeautyFilterProcessor: Failed to load Face Mesh:", error);
-      this.aiConfig.beauty.enabled = false;
-      this.faceMesh = null;
+      this.cleanup();
+      throw error;
     }
   }
 
@@ -131,10 +123,13 @@ export class BeautyFilterProcessor {
     });
 
     // Canvas 엘리먼트를 send()에 전달
-    await this.faceMesh.send({ image: canvas });
-
-    // MediaPipe onResults 콜백에서 결과가 올 때까지 기다림
-    const results = await resultsPromise;
+    const faceMesh = this.faceMesh;
+    const results = await withTimeout((async () => {
+      await faceMesh.send({ image: canvas });
+      return resultsPromise;
+    })(), 1500, "뷰티 필터 응답 시간이 초과됐습니다.").finally(() => {
+      this._faceMeshResultResolver = null;
+    });
 
     const faceLandmarks = results.multiFaceLandmarks?.[0];
 
@@ -308,9 +303,11 @@ export class BeautyFilterProcessor {
    */
   public cleanup(): void {
     if (this.faceMesh) {
-      // this.faceMesh.close(); // FaceMesh에 명시적인 close 메서드가 없을 수 있음
+      const faceMesh = this.faceMesh;
       this.faceMesh = null;
+      void faceMesh.close().catch(error => console.warn("FaceMesh close failed", error));
     }
+    this._faceMeshResultResolver = null;
     this.beautyGammaLUT = null;
   }
 }

@@ -1,8 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
+  distDir: process.env.KEEPICK_NEXT_DIST_DIR || ".next",
   images: {
+    unoptimized: process.env.NEXT_PUBLIC_LOCAL_DEMO === "true",
     remotePatterns: [
+      ...(process.env.NODE_ENV === "development" ? [{
+        protocol: "http" as const,
+        hostname: "localhost",
+        port: "18080",
+        pathname: "/api/local-files",
+      }] : []),
       {
         protocol: "https",
         hostname: "plus.unsplash.com",

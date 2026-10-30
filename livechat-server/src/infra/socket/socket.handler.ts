@@ -1,4 +1,6 @@
 import { Server, Socket } from "socket.io";
+import { realtimeAccess } from "../../domain/auth/access";
+import { registerReactionHandler } from "../../domain/reaction/reaction.handler";
 import { roomService } from "../../domain/room/factory/room.factory";
 import { chatService } from "../../domain/chat/factory/chat.factory";
 import { screenShareService } from "../../domain/screenshare/factory/screen-share.factory";
@@ -29,6 +31,19 @@ import {
 
 export function setupSocketHandlers(io: Server): void {
   io.on("connection", (socket: Socket) => {
+    socket.use(async ([event, data], next) => {
+      if (!realtimeAccess.required) { next(); return; }
+      try {
+        if (event === "join_room" || event === "chat_join") {
+          await realtimeAccess.authorizeRoom(socket, data?.roomId);
+          data.userName = socket.data.keepick.nickname;
+        } else if (event !== "chat_leave" && data?.roomId && data.roomId !== roomService.getRoomByPeerId(socket.id)?.id) {
+          throw new Error("그룹 접근 권한이 없습니다.");
+        }
+        next();
+      } catch { socket.emit("error", { message: "로그인과 그룹 접근 권한을 확인해 주세요." }); }
+    });
+    registerReactionHandler(io, socket, roomService);
     // 핸들러들 인스턴스 생성
     const roomEventsHandler = new RoomEventsHandler(roomService);
     const transportEventsHandler = new TransportEventsHandler(roomService);
@@ -108,9 +123,15 @@ export function setupSocketHandlers(io: Server): void {
     // =========================
     // Gesture 관련 이벤트
     socket.on("gesture_detect", (data) => {
-      console.log("Gesture detected:", data);
-      // 같은 방의 다른 클라이언트들에게만 브로드캐스트 (자신 제외)
-      socket.to(data.roomId).emit("gesture_detected", data);
+      // Preserve the legacy gesture/effect API, with room and sender ownership
+      // enforced just like the current AI reaction path.
+      const room = roomService.getRoomByPeerId(socket.id);
+      const peer = room?.peers.get(socket.id);
+      if (!data || typeof data !== "object" || !room || !peer ||
+          data.roomId !== room.id || !socket.rooms.has(room.id)) return;
+      socket.to(room.id).emit("gesture_detected", {
+        ...data, roomId: room.id, userId: socket.id, userName: peer.name, timestamp: Date.now(),
+      });
     });
 
     // // =========================

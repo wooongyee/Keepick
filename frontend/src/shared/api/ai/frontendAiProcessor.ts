@@ -14,6 +14,9 @@ import { EmotionFaceProcessor } from "./emotionFaceProcessor";
 import { BeautyFilterProcessor } from "./beautyFilterProcessor";
 import { GestureProcessor } from "./gestureProcessor";
 import * as tf from "@tensorflow/tfjs";
+import { abortable, abortError, withTimeout } from "./asyncResource";
+import { FACE_MESH_ASSETS } from "./faceMeshLoader";
+import { setAiRuntime } from "@/entities/video-conference/ai/model/aiSlice";
 
 // --- AI 모델 경로 상수 정의 ---
 const MODELS_BASE_PATH = "/models";
@@ -27,13 +30,32 @@ const STATIC_GESTURE_MODEL_PATH = `${MODELS_BASE_PATH}/static-gesture/model.json
 const DYNAMIC_GESTURE_MODEL_PATH = `${MODELS_BASE_PATH}/dinamic-gesture/model.json`;
 
 // MediaPipe WASM 파일 CDN 경로
-const FACE_MESH_WASM_PATH = "https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh";
-const TASKS_VISION_WASM_PATH = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm";
+const FACE_MESH_WASM_PATH = FACE_MESH_ASSETS;
+const TASKS_VISION_WASM_PATH = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm";
 
 // ✨ 이미지 오버레이를 위한 경로 상수 추가
 const STATIC_IMAGE_BASE_PATH = "/images/gestures/static";
 const DYNAMIC_IMAGE_BASE_PATH = "/images/gestures/dynamic";
 const EMOTION_IMAGE_BASE_PATH = "/images/gestures/emotion";
+
+interface AiRuntime {
+  key: string;
+  config: AiSystemConfig;
+  gesture: GestureProcessor | null;
+  emotion: EmotionFaceProcessor | null;
+  beauty: BeautyFilterProcessor | null;
+  images: Map<string, HTMLImageElement>;
+}
+
+interface VideoSession {
+  source: MediaStreamTrack;
+  output: MediaStreamTrack | null;
+  video: HTMLVideoElement;
+  canvas: HTMLCanvasElement;
+  frame: number | null;
+  cancel: (() => void) | null;
+  onError?: (error: Error) => void;
+}
 
 class FrontendAiProcessor {
   private dispatch: AppDispatch | null = null;
@@ -50,6 +72,16 @@ class FrontendAiProcessor {
   private beautyFilterProcessor: BeautyFilterProcessor | null = null;
   private gestureProcessor: GestureProcessor | null = null;
   private isInitialized = false;
+  private runtime: AiRuntime | null = null;
+  private runtimeVersion = 0;
+  private initializationEpoch = 0;
+  private initializationQueue: Promise<void> = Promise.resolve();
+  private sdkLoadQueue: Promise<void> = Promise.resolve();
+  private initializationAbort: AbortController | null = null;
+  private videoSession: VideoSession | null = null;
+  private analysisTask: Promise<void> | null = null;
+  private analysisFailed = false;
+  private beautyFrame: ImageData | null = null;
 
   private onGestureResultCallback: GestureCallback | null = null;
   private onEmotionResultCallback: EmotionCallback | null = null;
@@ -90,7 +122,7 @@ class FrontendAiProcessor {
   private loadedImages: Map<string, HTMLImageElement> = new Map();
 
   // ✨ 🚨 수정: app.py STATIC_IMG_MAP과 일치하도록 이미지 경로 수정
-  private async preloadImages(): Promise<void> {
+  private async preloadImages(config: AiSystemConfig, signal: AbortSignal): Promise<Map<string, HTMLImageElement>> {
     const imagePaths: { [key: string]: string } = {
       // Static gestures - app.py STATIC_IMG_MAP과 정확히 일치
       // 🚨 중요: fist와 open_palm 제거 (app.py에서 오버레이되지 않음)
@@ -118,92 +150,142 @@ class FrontendAiProcessor {
       yawn: `${EMOTION_IMAGE_BASE_PATH}/yawn.png`,
     };
 
-    const promises = Object.entries(imagePaths).map(([key, src]) => {
-      return new Promise<void>((resolve) => {
-        const img = new Image();
-        img.src = src;
-        img.onload = () => {
-          this.loadedImages.set(key, img);
-          resolve();
-        };
-        img.onerror = () => {
-          console.error(`❌ Failed to load image: ${src}`);
-          resolve(); // 실패해도 계속 진행
-        };
-      });
-    });
-
+    const images = new Map<string, HTMLImageElement>();
+    const promises = Object.entries(imagePaths).filter(([, src]) =>
+      src.startsWith(STATIC_IMAGE_BASE_PATH) ? config.gesture.static.enabled :
+      src.startsWith(DYNAMIC_IMAGE_BASE_PATH) ? config.gesture.dynamic.enabled : config.emotion.enabled
+    ).map(([key, src]) => new Promise<void>((resolve, reject) => {
+      const img = new Image();
+      const clean = () => {
+        img.onload = null;
+        img.onerror = null;
+        signal.removeEventListener("abort", cancel);
+      };
+      const cancel = () => { clean(); img.src = ""; reject(abortError()); };
+      if (signal.aborted) { cancel(); return; }
+      signal.addEventListener("abort", cancel, { once: true });
+      img.onload = () => { clean(); images.set(key, img); resolve(); };
+      img.onerror = () => { clean(); reject(new Error("AI 효과 이미지를 불러오지 못했습니다.")); };
+      img.src = src;
+    }));
     await Promise.all(promises);
-    console.log("✅ All overlay images preloaded.");
+    return images;
   }
-  
-  public async init(dispatch: AppDispatch): Promise<void> {
+
+  public cancelInitialization(): void {
+    const wasLoading = !!this.initializationAbort;
+    this.initializationEpoch++;
+    this.initializationAbort?.abort();
+    this.initializationAbort = null;
+    if (wasLoading) this.dispatch?.(setAiRuntime({ status: this.runtime ? "ready" : "idle" }));
+  }
+
+  private disposeRuntime(runtime: AiRuntime): void {
+    runtime.gesture?.cleanup();
+    runtime.emotion?.cleanup();
+    runtime.beauty?.cleanup();
+    runtime.images.clear();
+  }
+
+  public init(dispatch: AppDispatch, config: AiSystemConfig = this.aiConfig): Promise<void> {
     this.dispatch = dispatch;
-    emotionCaptureManager.init(dispatch);
-    
-    try {
-      await tf.setBackend('webgl');
-      console.log(`TensorFlow.js backend set to: ${tf.getBackend()}`);
-    } catch (error) {
-      console.warn("❌ Failed to set TensorFlow.js WebGL backend, falling back to CPU:", error);
-    }
-
-    this.emotionFaceProcessor = new EmotionFaceProcessor(this.aiConfig);
-    this.beautyFilterProcessor = new BeautyFilterProcessor(this.aiConfig);
-    this.gestureProcessor = new GestureProcessor(this.aiConfig);
-
-    try {
-      console.log("🤖 Initializing AI modules and preloading images...");
-      console.log(`- Emotion model: ${EXPRESSION_MODEL_PATH}`);
-      console.log(`- Emotion scaler: ${EXPRESSION_SCALER_PATH}`);
-      
-      // ✨ AI 모델 초기화와 동시에 이미지 미리 불러오기 실행
-      await Promise.all([
-        this.preloadImages(),
-        this.emotionFaceProcessor.init(
-          EXPRESSION_MODEL_PATH,
-          EXPRESSION_SCALER_PATH,
-          FACE_MESH_WASM_PATH
-        ),
-        this.beautyFilterProcessor.init(FACE_MESH_WASM_PATH),
-        this.gestureProcessor.init(TASKS_VISION_WASM_PATH),
-      ]);
-
-      console.log("🔄 Loading gesture models...");
-      console.log(`- Static gesture model: ${STATIC_GESTURE_MODEL_PATH}`);
-      console.log(`- Dynamic gesture model: ${DYNAMIC_GESTURE_MODEL_PATH}`);
-
-      this.isInitialized = true;
-      console.log("✅ FrontendAiProcessor initialized successfully.");
-      
-    } catch (error) {
-      console.error("❌ FrontendAiProcessor: Failed to initialize AI models:", error);
-      this.isInitialized = false;
-    }
+    const desired = JSON.parse(JSON.stringify(config)) as AiSystemConfig;
+    const key = JSON.stringify(desired);
+    const epoch = this.initializationEpoch;
+    const operation = this.initializationQueue.then(async () => {
+      if (epoch !== this.initializationEpoch) throw abortError();
+      if (this.runtime?.key === key && !this.analysisFailed) {
+        dispatch(setAiRuntime({ status: "ready" }));
+        return;
+      }
+      dispatch(setAiRuntime({ status: "loading" }));
+      const controller = new AbortController();
+      this.initializationAbort = controller;
+      const candidate: AiRuntime = {
+        key, config: desired, images: new Map(),
+        gesture: desired.gesture.static.enabled || desired.gesture.dynamic.enabled ? new GestureProcessor(desired) : null,
+        emotion: desired.emotion.enabled ? new EmotionFaceProcessor(desired) : null,
+        beauty: desired.beauty.enabled ? new BeautyFilterProcessor(desired) : null,
+      };
+      let committed = false;
+      // SDK downloads cannot all be aborted. Keep late loads serialized as well
+      // as user requests so a cancelled legacy loader cannot corrupt a retry.
+      const loading = this.sdkLoadQueue.then(async () => {
+        controller.signal.throwIfAborted();
+        if (candidate.gesture || candidate.emotion) {
+          try { if (await tf.setBackend("webgl") === false) await tf.setBackend("cpu"); }
+          catch { await tf.setBackend("cpu"); }
+          await tf.ready();
+        }
+        controller.signal.throwIfAborted();
+        const outcomes = await Promise.allSettled([
+          (async () => {
+            // Legacy Solutions and Tasks Vision both install Emscripten globals.
+            // Finish each face graph before another SDK can replace those globals.
+            await candidate.emotion?.init(EXPRESSION_MODEL_PATH, EXPRESSION_SCALER_PATH, FACE_MESH_WASM_PATH);
+            controller.signal.throwIfAborted();
+            await candidate.beauty?.init(FACE_MESH_WASM_PATH);
+            controller.signal.throwIfAborted();
+            await candidate.gesture?.init(TASKS_VISION_WASM_PATH);
+          })(),
+          this.preloadImages(desired, controller.signal).then(images => { candidate.images = images; }),
+        ]);
+        const failure = outcomes.find((result): result is PromiseRejectedResult => result.status === "rejected");
+        if (failure) throw failure.reason;
+      });
+      this.sdkLoadQueue = loading.catch(() => {});
+      try {
+        await withTimeout(abortable(loading, controller.signal), 20000, "AI 준비 시간이 초과됐습니다. 기본 영상은 계속 사용할 수 있습니다.");
+        if (epoch !== this.initializationEpoch) throw abortError();
+        const previous = this.runtime;
+        this.runtime = candidate;
+        this.runtimeVersion++;
+        this.aiConfig = desired;
+        this.gestureProcessor = candidate.gesture;
+        this.emotionFaceProcessor = candidate.emotion;
+        this.beautyFilterProcessor = candidate.beauty;
+        this.loadedImages = candidate.images;
+        this.isInitialized = true;
+        this.analysisFailed = false;
+        this.beautyFrame = null;
+        committed = true;
+        emotionCaptureManager.init(dispatch);
+        if (previous) this.disposeRuntime(previous);
+        dispatch(setAiRuntime({ status: "ready" }));
+      } catch (error) {
+        controller.abort();
+        this.disposeRuntime(candidate);
+        // MediaPipe/TF loads may finish after cancellation; dispose again only
+        // after every candidate task settles, without touching a newer runtime.
+        void loading.then(() => this.disposeRuntime(candidate), () => this.disposeRuntime(candidate));
+        if (epoch === this.initializationEpoch) {
+          dispatch(setAiRuntime({ status: "error", error: error instanceof Error ? error.message : "AI를 준비하지 못했습니다." }));
+        }
+        throw error;
+      } finally {
+        if (this.initializationAbort === controller) this.initializationAbort = null;
+        if (!committed) candidate.images.clear();
+      }
+    });
+    this.initializationQueue = operation.catch(() => {});
+    return operation;
   }
-
 
   public updateConfig(config: Partial<AiSystemConfig>): Promise<void> {
-    return Promise.resolve().then(() => {
-      this.aiConfig = {
-        ...this.aiConfig,
-        ...config,
-        gesture: { ...this.aiConfig.gesture, ...config.gesture },
-        emotion: { ...this.aiConfig.emotion, ...config.emotion },
-        beauty: { ...this.aiConfig.beauty, ...config.beauty },
-      };
-
-      this.emotionFaceProcessor?.updateConfig(this.aiConfig);
-      this.beautyFilterProcessor?.updateConfig(this.aiConfig);
-      this.gestureProcessor?.updateConfig(this.aiConfig);
+    if (!this.dispatch) return Promise.reject(new Error("AI 시스템이 준비되지 않았습니다."));
+    return this.init(this.dispatch, {
+      ...this.aiConfig, ...config,
+      gesture: { ...this.aiConfig.gesture, ...config.gesture },
+      emotion: { ...this.aiConfig.emotion, ...config.emotion },
+      beauty: { ...this.aiConfig.beauty, ...config.beauty },
     });
   }
 
-  public setGestureCallback(callback: GestureCallback): void {
+  public setGestureCallback(callback: GestureCallback | null): void {
     this.onGestureResultCallback = callback;
   }
 
-  public setEmotionCallback(callback: EmotionCallback): void {
+  public setEmotionCallback(callback: EmotionCallback | null): void {
     this.onEmotionResultCallback = callback;
   }
 
@@ -276,120 +358,97 @@ class FrontendAiProcessor {
         }
       }
 
-      this.backgroundAnalysisLoop = requestAnimationFrame(processFrame);
+      if (this.backgroundAnalysisActive && this.backgroundVideoElement) this.backgroundAnalysisLoop = requestAnimationFrame(processFrame);
     };
 
     processFrame();
   }
 
-  public async processVideoTrack(originalTrack: MediaStreamTrack): Promise<MediaStreamTrack> {
-    if (originalTrack.kind !== "video") {
-      console.warn("Only video tracks can be AI processed.");
-      return originalTrack;
+  public async processVideoTrack(originalTrack: MediaStreamTrack, onError?: (error: Error) => void): Promise<MediaStreamTrack> {
+    if (originalTrack.kind !== "video" || originalTrack.readyState === "ended") {
+      throw new Error("사용할 수 있는 카메라 트랙이 없습니다.");
     }
-
+    if (!this.isInitialized) throw new Error("AI 시스템이 준비되지 않았습니다.");
     this.stopProcessing();
-    this.activeSourceTrack = originalTrack;
-
-    console.log("🎯 Starting AI video track processing...", {
-      trackSettings: originalTrack.getSettings(),
-      isInitialized: this.isInitialized
-    });
-
-    const videoElem = document.createElement("video");
-    videoElem.srcObject = new MediaStream([originalTrack]);
-    videoElem.autoplay = true;
-    videoElem.muted = true;
-
-    const outputCanvas = document.createElement("canvas");
-    outputCanvas.width = originalTrack.getSettings().width || 640;
-    outputCanvas.height = originalTrack.getSettings().height || 480;
-    const ctx = outputCanvas.getContext("2d");
-
-    return new Promise<MediaStreamTrack>((resolve, reject) => {
-      let isResolved = false;
-      
-      const timeout = setTimeout(() => {
-        if (!isResolved) {
-          console.error("❌ AI video track processing timeout");
-          reject(new Error("AI video track processing timeout"));
-        }
-      }, 3000);
-
-      videoElem.onloadedmetadata = () => {
-        console.log("📹 Video metadata loaded, starting frame processing...");
-        
-        const processFrame = async () => {
-          if (videoElem.paused || videoElem.ended) return;
-
-          const now = performance.now();
-          const needsProcessing = now - this.lastFrameTime >= this.frameInterval;
-
-          if (ctx) {
-            ctx.drawImage(videoElem, 0, 0, outputCanvas.width, outputCanvas.height);
-            if (this.aiConfig.beauty.enabled && this.beautyFilterProcessor) {
-              const imageData = ctx.getImageData(0, 0, outputCanvas.width, outputCanvas.height);
-              const filteredData = await this.beautyFilterProcessor.applyFilters(imageData);
-              ctx.putImageData(filteredData, 0, 0);
-            }
-
-            // ✨ 오버레이 렌더링
-            this.renderOverlays(ctx, outputCanvas, now);
-
-            if (
-              needsProcessing &&
-              this.isInitialized &&
-              this.gestureProcessor &&
-              this.emotionFaceProcessor
-            ) {
-              this.lastFrameTime = now;
-              try {
-                await this.runAIProcessors(videoElem, now);
-              } catch (e) {
-                console.error("Error processing AI for frame:", e);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    const canvas = document.createElement("canvas");
+    canvas.width = originalTrack.getSettings().width || 640;
+    canvas.height = originalTrack.getSettings().height || 480;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("AI 영상 출력을 만들지 못했습니다.");
+    const session: VideoSession = {
+      source: originalTrack.clone(), output: null, video, canvas, frame: null, cancel: null, onError,
+    };
+    this.videoSession = session;
+    this.activeSourceTrack = session.source;
+    video.srcObject = new MediaStream([session.source]);
+    try {
+      const cancelled = new Promise<never>((_, reject) => { session.cancel = () => reject(abortError()); });
+      await withTimeout(Promise.race([video.play(), cancelled]), 3000, "AI 영상 준비 시간이 초과됐습니다.");
+      session.cancel = null;
+      if (this.videoSession !== session) throw abortError();
+      session.output = canvas.captureStream(30).getVideoTracks()[0];
+      if (!session.output) throw new Error("AI 영상 트랙을 만들지 못했습니다.");
+      this.activeProcessedTrack = session.output;
+      const render = () => {
+        if (this.videoSession !== session) return;
+        if (session.output?.readyState === "ended") { this.stopProcessing(); return; }
+        session.source.enabled = session.output?.enabled ?? true;
+        const now = performance.now();
+        if (video.readyState >= 2) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          if (this.aiConfig.beauty.enabled && this.beautyFrame && !this.analysisFailed) ctx.putImageData(this.beautyFrame, 0, 0);
+          this.renderOverlays(ctx, canvas, now);
+          if (session.source.enabled && !this.analysisTask && !this.analysisFailed && now - this.lastFrameTime >= this.frameInterval) {
+            this.lastFrameTime = now;
+            const version = this.runtimeVersion;
+            const beauty = this.beautyFilterProcessor;
+            const image = this.aiConfig.beauty.enabled && beauty ? ctx.getImageData(0, 0, canvas.width, canvas.height) : null;
+            const task = withTimeout((async () => {
+              if (image && beauty) {
+                const filtered = await beauty.applyFilters(image);
+                if (this.videoSession === session && version === this.runtimeVersion) this.beautyFrame = filtered;
               }
-            }
+              if (this.videoSession === session && version === this.runtimeVersion) await this.runAIProcessors(video, now);
+            })(), 2000, "AI 처리 응답 시간이 초과됐습니다.").catch((error: unknown) => {
+              if (this.videoSession !== session || version !== this.runtimeVersion) return;
+              this.analysisFailed = true;
+              this.beautyFrame = null;
+              this.activeOverlays.clear();
+              const failure = error instanceof Error ? error : new Error("AI 처리 중 오류가 발생했습니다.");
+              this.dispatch?.(setAiRuntime({ status: "error", error: failure.message }));
+              session.onError?.(failure);
+            }).finally(() => { if (this.analysisTask === task) this.analysisTask = null; });
+            this.analysisTask = task;
           }
-          requestAnimationFrame(processFrame);
-        };
-        
-        videoElem.onplaying = () => {
-          if (!isResolved) {
-            console.log("▶️ Video started playing, returning AI-processed track");
-            const processedStream = outputCanvas.captureStream(30);
-            const processedTrack = processedStream.getVideoTracks()[0];
-            
-            if (processedTrack) {
-              isResolved = true;
-              clearTimeout(timeout);
-              console.log("✅ AI-processed track ready:", {
-                trackId: processedTrack.id,
-                enabled: processedTrack.enabled,
-                readyState: processedTrack.readyState
-              });
-              this.activeProcessedTrack = processedTrack;
-              resolve(processedTrack);
-            } else {
-              console.error("❌ Failed to get processed track from canvas stream");
-              reject(new Error("Failed to get processed track from canvas stream"));
-            }
-          }
-        };
-        
-        videoElem.play().then(() => {
-          processFrame();
-        }).catch((error) => {
-          console.error("❌ Failed to start video playback:", error);
-          reject(error);
-        });
+        }
+        if (this.videoSession === session) session.frame = requestAnimationFrame(render);
       };
+      render();
+      return session.output;
+    } catch (error) {
+      this.releaseVideoSession(session);
+      throw error;
+    }
+  }
 
-      videoElem.onerror = (error) => {
-        console.error("❌ Video element error:", error);
-        clearTimeout(timeout);
-        reject(new Error("Video element error"));
-      };
-    });
+  private releaseVideoSession(session: VideoSession): void {
+    session.cancel?.();
+    session.cancel = null;
+    if (session.frame !== null) cancelAnimationFrame(session.frame);
+    session.video.pause();
+    session.video.srcObject = null;
+    session.source.stop();
+    session.output?.stop();
+    session.canvas.width = 0;
+    session.canvas.height = 0;
+    if (this.videoSession === session) {
+      this.videoSession = null;
+      this.activeSourceTrack = null;
+      this.activeProcessedTrack = null;
+    }
   }
 
   private async runAIProcessors(videoElement: HTMLVideoElement, timestamp: number): Promise<void> {
@@ -398,8 +457,11 @@ class FrontendAiProcessor {
       return;
     }
     
+    const version = this.runtimeVersion;
+    const emotionProcessor = this.emotionFaceProcessor;
+    const gestureProcessor = this.gestureProcessor;
     // 감정 인식 처리
-    if (this.aiConfig.emotion.enabled && this.emotionFaceProcessor) {
+    if (this.aiConfig.emotion.enabled && emotionProcessor) {
       const faceCanvas = document.createElement("canvas");
       faceCanvas.width = videoElement.videoWidth;
       faceCanvas.height = videoElement.videoHeight;
@@ -407,8 +469,9 @@ class FrontendAiProcessor {
       if (!ctx) return;
       ctx.drawImage(videoElement, 0, 0, faceCanvas.width, faceCanvas.height);
       const faceImageData = ctx.getImageData(0, 0, faceCanvas.width, faceCanvas.height);
-      const emotionResult = await this.emotionFaceProcessor.detectEmotion(faceImageData, timestamp);
+      const emotionResult = await emotionProcessor.detectEmotion(faceImageData, timestamp);
       
+      if (version !== this.runtimeVersion) return;
       if (emotionResult && this.onEmotionResultCallback) {
         const timeSinceLastEmotion = timestamp - this.lastEmotionResultTime;
         if (timeSinceLastEmotion >= this.EMOTION_RESULT_INTERVAL || emotionResult.label !== "none") {
@@ -422,10 +485,11 @@ class FrontendAiProcessor {
     // 제스처 인식 처리
     if (
       (this.aiConfig.gesture.static.enabled || this.aiConfig.gesture.dynamic.enabled) &&
-      this.gestureProcessor
+      gestureProcessor
     ) {
-      const gestureResult = await this.gestureProcessor.detectGestures(videoElement, timestamp);
+      const gestureResult = await gestureProcessor.detectGestures(videoElement, timestamp);
       
+      if (version !== this.runtimeVersion) return;
       if (gestureResult && this.onGestureResultCallback) {
         const timeSinceLastGesture = timestamp - this.lastGestureResultTime;
         const hasValidGesture = gestureResult.static.label !== "none" || gestureResult.dynamic.label !== "none";
@@ -622,57 +686,35 @@ class FrontendAiProcessor {
   }
 
   public stopProcessing(): void {
-    // 🚨 중요: 원본 트랙(activeSourceTrack)은 중단하지 않음!
-    // 원본 트랙은 사용자의 카메라 스트림이므로 AI 처리 종료와 무관하게 유지되어야 함
-    if (this.activeSourceTrack) {
-      this.activeSourceTrack.stop();
-      // console.log("📌 Releasing reference to source track (not stopping):", this.activeSourceTrack.id);
-      this.activeSourceTrack = null; // 참조만 해제
-    }
-    
-    // AI 처리된 트랙만 중단
-    if (this.activeProcessedTrack) {
-      this.activeProcessedTrack.stop();
-      this.activeProcessedTrack = null;
-      console.log("🛑 Stopped AI processed track.");
-    }
-    
+    this.runtimeVersion++;
+    if (this.videoSession) this.releaseVideoSession(this.videoSession);
+    this.beautyFrame = null;
+    this.activeOverlays.clear();
     this.stopBackgroundAnalysis();
   }
 
   public cleanup(): void {
-    this.stopProcessing(); 
-    this.stopBackgroundAnalysis();
-    
-    emotionCaptureManager.cleanup();
-    this.dispatch = null;
-    
-    this.activeOverlays.clear();
-    
-    this.onGestureResultCallback = null;
-    this.onEmotionResultCallback = null;
+    this.cancelInitialization();
+    this.stopProcessing();
+    this.runtimeVersion++;
+    if (this.runtime) this.disposeRuntime(this.runtime);
+    this.runtime = null;
+    this.gestureProcessor = null;
+    this.emotionFaceProcessor = null;
+    this.beautyFilterProcessor = null;
     this.isInitialized = false;
-    
+    this.analysisFailed = false;
+    this.analysisTask = null;
     this.lastFrameTime = 0;
     this.lastGestureResultTime = 0;
     this.lastEmotionResultTime = 0;
-    
-    this.emotionFaceProcessor?.cleanup();
-    this.emotionFaceProcessor = null;
-    this.beautyFilterProcessor?.cleanup();
-    this.beautyFilterProcessor = null;
-    this.gestureProcessor?.cleanup();
-    this.gestureProcessor = null;
-    
-    this.loadedImages.clear();
-
-    console.log("FrontendAiProcessor cleaned up.");
+    this.onGestureResultCallback = null;
+    this.onEmotionResultCallback = null;
+    this.dispatch?.(setAiRuntime({ status: "idle" }));
+    this.dispatch = null;
+    emotionCaptureManager.cleanup();
+    this.initializationQueue = Promise.resolve();
   }
-
-  // // isInitialized 상태를 확인할 수 있는 public getter
-  // public get initialized(): boolean {
-  //   return this.isInitialized;
-  // }
 }
 
 export const frontendAiProcessor = new FrontendAiProcessor();

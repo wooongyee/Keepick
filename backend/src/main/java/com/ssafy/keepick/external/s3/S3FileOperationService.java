@@ -1,5 +1,7 @@
 package com.ssafy.keepick.external.s3;
 
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+
 import com.ssafy.keepick.global.exception.BaseException;
 import com.ssafy.keepick.global.exception.ErrorCode;
 import com.ssafy.keepick.global.utils.FileUtils;
@@ -16,6 +18,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
 @Slf4j
+@ConditionalOnProperty(name = "app.storage.type", havingValue = "s3", matchIfMissing = true)
 @Service
 @RequiredArgsConstructor
 public class S3FileOperationService {

@@ -1,6 +1,5 @@
 
-import dotenv from "dotenv";
-dotenv.config();
+import { portFromEnv } from "../../config/env";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -10,28 +9,30 @@ const DEV_URL = process.env.DEV_URL
 const DEV_ORIGIN = process.env.DEV_ORIGIN
 const BACKEND_ORIGIN = process.env.BACKEND_ORIGIN
 const FRONTEND_VERCEL_ORIGIN = process.env.FRONTEND_VERCEL_ORIGIN
-const SSL_KEY_PATH = "certs/server.key";
-const SSL_CERT_PATH = "certs/server.cert";
+const protocol = process.env.SERVER_PROTOCOL ?? (isProduction ? "http" : "https");
+if (protocol !== "http" && protocol !== "https") {
+  throw new Error("SERVER_PROTOCOL must be http or https");
+}
+
+const allowedOrigins = process.env.SOCKET_ALLOWED_ORIGINS
+  ? process.env.SOCKET_ALLOWED_ORIGINS.split(",").map((value) => value.trim()).filter(Boolean)
+  : [DEV_ORIGIN, BACKEND_ORIGIN, FRONTEND_VERCEL_ORIGIN, "https://localhost:3000"]
+      .filter((url): url is string => !!url);
 
 export const serverConfig = {
-  port: 8443,
-  host: isProduction ? BASE_URL : DEV_URL,
+  port: portFromEnv("SERVER_PORT", 8443),
+  host: process.env.SERVER_HOST ?? (isProduction ? BASE_URL : DEV_URL) ?? "127.0.0.1",
   cors: {
-    origin: [
-      DEV_ORIGIN,
-      BACKEND_ORIGIN,
-      FRONTEND_VERCEL_ORIGIN,
-      "https://localhost:3000",
-    ].filter((url): url is string => !!url),
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST"],
   },
-  ssl: isProduction
-    ? null  // prod 환경에서는 nginx 프록시 서버를 이용
-    : {
-      keyPath: SSL_KEY_PATH,
-      certPath: SSL_CERT_PATH,
-    },
+  ssl: protocol === "https"
+    ? {
+      keyPath: process.env.SERVER_SSL_KEY_PATH ?? "certs/server.key",
+      certPath: process.env.SERVER_SSL_CERT_PATH ?? "certs/server.cert",
+    }
+    : null,
   socket: {
     pingTimeout: 60000,
     pingInterval: 25000

@@ -195,7 +195,7 @@ class TierAlbumControllerTest extends BaseTest {
         // given
         Long groupId = 1L;
 
-        when(tierAlbumService.getTierAlbumListWithPaging(eq(groupId), eq(1), eq(10)))
+        when(tierAlbumService.getTierAlbumListWithPaging(eq(groupId), eq(0), eq(10)))
             .thenReturn(tierAlbumListDto);
 
         // when & then (파라미터 없이 호출)
@@ -296,8 +296,8 @@ class TierAlbumControllerTest extends BaseTest {
     }
 
     @Test
-    @DisplayName("티어 앨범 수정 API 성공 - 빈 이름")
-    void updateTierAlbum_Success_EmptyName() throws Exception {
+    @DisplayName("티어 앨범 수정 API 거절 - 빈 이름")
+    void updateTierAlbum_RejectsEmptyName() throws Exception {
         // given
         Long groupId = 1L;
         Long tierAlbumId = 1L;
@@ -305,16 +305,13 @@ class TierAlbumControllerTest extends BaseTest {
             .name("")
             .build();
 
-        when(tierAlbumService.updateTierAlbum(eq(groupId), eq(tierAlbumId), any(UpdateTierAlbumRequest.class)))
-            .thenReturn(tierAlbumDto);
-
         // when & then
         mockMvc.perform(put("/api/groups/{groupId}/tier-albums/{tierAlbumId}", groupId, tierAlbumId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$.status").value(200))
-            .andExpect(jsonPath("$.data").isEmpty());
+            .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verify(tierAlbumService, org.mockito.Mockito.never())
+            .updateTierAlbum(eq(groupId), eq(tierAlbumId), any(UpdateTierAlbumRequest.class));
     }
 
     @Test

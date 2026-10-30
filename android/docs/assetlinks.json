@@ -1,0 +1,10 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.ssafy.keepick",
+    "sha256_cert_fingerprints": [
+      "F9:34:8C:D7:BE:6B:AE:6D:0C:7C:2D:55:86:AF:A9:FC:1D:29:13:7F:03:C8:DA:2F:8D:1B:6A:61:EA:F2:B0:79"
+    ]
+  }
+}]

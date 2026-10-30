@@ -1,0 +1,21 @@
+name: keepick-deployer
+services:
+  deployer:
+    build: ./mcp
+    container_name: keepick-deployer
+    restart: unless-stopped
+    environment:
+      KEEPICK_DEPLOY_TOKEN: ${KEEPICK_DEPLOY_TOKEN:?required}
+      KEEPICK_RELEASE_ROOT: /home/ys050/workspace/keepick
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/ys050/workspace/keepick:/home/ys050/workspace/keepick
+    networks: [gateway]
+    mem_limit: 192m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4200/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+networks:
+  gateway: {external: true, name: seedops_default}

@@ -1,3 +1,5 @@
+import { loadFaceMesh, initializeFaceMesh } from "./faceMeshLoader";
+import { withTimeout } from "./asyncResource";
 // src/shared/api/ai/emotionFaceProcessor.ts
 
 import * as tf from "@tensorflow/tfjs";
@@ -104,14 +106,13 @@ export class EmotionFaceProcessor {
 
     try {
       // TFJS 백엔드 고정 & 준비
-      await tf.setBackend("webgl");
       await tf.ready();
 
       // Dynamic import of MediaPipe Face Mesh
-      const mediapipeFaceMesh = await import("@mediapipe/face_mesh");
+      const FaceMesh = await loadFaceMesh();
 
       // FaceMesh 인스턴스
-      this.faceMesh = new mediapipeFaceMesh.FaceMesh({
+      this.faceMesh = new FaceMesh({
         locateFile: (file: string) => {
           // 필요시 CDN으로 대체 가능:
           // return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
@@ -133,6 +134,7 @@ export class EmotionFaceProcessor {
           resolve(results);
         }
       });
+      await initializeFaceMesh(this.faceMesh);
       console.log("EmotionFaceProcessor: Face Mesh initialized.");
 
       // TensorFlow.js 모델 및 스케일러 로드
@@ -163,9 +165,8 @@ export class EmotionFaceProcessor {
       }
     } catch (error) {
       console.error("EmotionFaceProcessor: Failed to load Face Mesh or models:", error);
-      this.aiConfig.emotion.enabled = false;
-      this.faceMesh = null;
-      this.expressionModel = null;
+      this.cleanup();
+      throw error;
     }
   }
 
@@ -227,8 +228,13 @@ export class EmotionFaceProcessor {
       this._faceMeshResultResolver = resolve;
     });
 
-    await this.faceMesh.send({ image: canvas });
-    const results = await resultsPromise;
+    const faceMesh = this.faceMesh;
+    const results = await withTimeout((async () => {
+      await faceMesh.send({ image: canvas });
+      return resultsPromise;
+    })(), 1500, "표정 인식 응답 시간이 초과됐습니다.").finally(() => {
+      this._faceMeshResultResolver = null;
+    });
 
     if (results.multiFaceLandmarks && results.multiFaceLandmarks.length > 0) {
       const faceLandmarks = results.multiFaceLandmarks[0];
@@ -503,8 +509,11 @@ export class EmotionFaceProcessor {
    */
   public cleanup(): void {
     if (this.faceMesh) {
+      const faceMesh = this.faceMesh;
       this.faceMesh = null;
+      void faceMesh.close().catch(error => console.warn("FaceMesh close failed", error));
     }
+    this._faceMeshResultResolver = null;
     if (this.expressionModel) {
       this.expressionModel.dispose();
       this.expressionModel = null;

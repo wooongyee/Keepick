@@ -11,8 +11,6 @@ import { initializeSocketApi, webrtcHandler, chatHandler, aiEventHandler } from 
 import { setRoomId } from "@/entities/video-conference/session/model/slice";
 import { joinRoomThunk } from "@/entities/video-conference/session/model/thunks";
 import { frontendAiProcessor } from "@/shared/api/ai"; // frontendAiProcessor 임포트 유지
-import { setAiEnabled } from "@/entities/video-conference/ai/model/aiSlice"; // setAiEnabled 액션 임포트 유지
-import { addReaction } from "@/entities/emoji-reaction/model/slice";
 import { mapGestureToEmoji, mapEmotionToEmoji, generateReactionId } from "@/shared/utils/aiEmojiMapper";
 import type { GestureResult, EmotionResult } from "@/shared/types/ai.types";
 
@@ -26,20 +24,43 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
   const { isInRoom, error, status, userName } = useAppSelector((state) => state.session);
   const aiState = useAppSelector((state) => state.ai);
   const isJoining = status === "pending";
+  const hasLocalVideo = useAppSelector(state => !!state.media.local.tracks.video);
 
   useEffect(() => {
+    let cancelled = false;
     const initializeSystems = async () => {
       try {
         dispatch(setRoomId(roomId));
         await mediasoupManager.init(dispatch);
+        if (cancelled) return;
         initializeSocketApi(dispatch);
 
+      } catch (e) {
+        console.error("❌ Failed to initialize systems:", e);
+        // TODO: UI에 에러 메시지를 표시하는 로직 추가
+      }
+    };
+
+    initializeSystems();
+
+    return () => {
+      cancelled = true;
+      console.log("🧹 Cleaning up conference page resources...");
+      webrtcHandler.leaveRoom();
+      chatHandler.leaveChat({ roomId });
+      aiEventHandler.cleanup();
+      // mediasoupManager.cleanup owns model and track cleanup.
+      // 로비에서 설정한 AI 상태를 유지하기 위해 setAiEnabled(false) 제거
+    };
+  }, [dispatch, roomId]);
+
+  // Lobby owns preview callbacks; entering the conference restores its owner.
+  useEffect(() => {
+    if (!isInRoom) return;
         // AI 이벤트 핸들러 설정
         console.log("🚀 Setting up AI handlers...");
         aiEventHandler.setRoomId(roomId);
         
-        // 실제 사용자 정보 설정
-        aiEventHandler.setUserInfo("local", userName || "익명");
 
         // AI 콜백 설정 (화상회의용)
         frontendAiProcessor.setGestureCallback((result: GestureResult) => {
@@ -60,7 +81,6 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
               confidence: result.static.confidence
             };
             
-            dispatch(addReaction(reaction));
             aiEventHandler.sendAiReaction(reaction);
             console.log("✅ Static gesture reaction added:", reaction);
           }
@@ -80,7 +100,6 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
               confidence: result.dynamic.confidence
             };
             
-            dispatch(addReaction(reaction));
             aiEventHandler.sendAiReaction(reaction);
             console.log("✅ Dynamic gesture reaction added:", reaction);
           }
@@ -103,55 +122,38 @@ export const ConferenceClientPage = ({ roomId }: ConferenceClientPageProps) => {
               confidence: result.confidence
             };
             
-            dispatch(addReaction(reaction));
             aiEventHandler.sendAiReaction(reaction);
             console.log("✅ Emotion reaction added:", reaction);
           }
         });
         
         console.log("✅ AI handlers set up successfully.");
-      } catch (e) {
-        console.error("❌ Failed to initialize systems:", e);
-        // TODO: UI에 에러 메시지를 표시하는 로직 추가
-      }
-    };
-
-    initializeSystems();
-
     return () => {
-      console.log("🧹 Cleaning up conference page resources...");
-      webrtcHandler.leaveRoom();
-      chatHandler.leaveChat({ roomId });
-      aiEventHandler.cleanup();
-      // AI 시스템 클린업은 AIProcessorInitializer에서 담당하므로 여기서는 제거합니다.
-      // 로비에서 설정한 AI 상태를 유지하기 위해 setAiEnabled(false) 제거
+      aiEventHandler.setRoomId("");
+      frontendAiProcessor.setGestureCallback(null);
+      frontendAiProcessor.setEmotionCallback(null);
     };
-  }, [dispatch, roomId]);
+  }, [dispatch, roomId, userName, isInRoom]);
 
-  // 회의 참여 후 AI가 활성화되어 있으면 자동으로 AI 처리 시작
+  // One owner applies Redux intent after the camera exists. Track identity is
+  // deliberately not a dependency: AI replacement changes that identity.
   useEffect(() => {
-    if (isInRoom && aiState.isAiEnabled) {
-      console.log("🤖 Conference joined with AI enabled, starting AI processing...");
-      // AI 설정 구성
-      const aiConfig = {
-        gesture: {
-          static: { enabled: aiState.isStaticGestureDetectionEnabled, confidence: 0.7 },
-          dynamic: { enabled: aiState.isDynamicGestureDetectionEnabled, confidence: 0.7 },
-        },
-        emotion: { enabled: aiState.isEmotionDetectionEnabled, confidence: 0.5 },
-        beauty: { enabled: aiState.isBeautyFilterEnabled },
-      };
-      
-      // mediasoupManager를 통해 AI 처리 활성화
-      mediasoupManager.toggleAIDuringConference(true, aiConfig)
-        .then(() => {
-          console.log("✅ AI processing started in conference");
-        })
-        .catch((error) => {
-          console.error("❌ Failed to start AI processing in conference:", error);
-        });
-    }
-  }, [isInRoom, aiState.isAiEnabled, aiState.isStaticGestureDetectionEnabled, aiState.isDynamicGestureDetectionEnabled, aiState.isEmotionDetectionEnabled, aiState.isBeautyFilterEnabled]);
+    if (!isInRoom || !hasLocalVideo) return;
+    let cancelled = false;
+    void mediasoupManager.toggleAIDuringConference(aiState.isAiEnabled, {
+      gesture: {
+        static: { enabled: aiState.isStaticGestureDetectionEnabled, confidence: 0.7 },
+        dynamic: { enabled: aiState.isDynamicGestureDetectionEnabled, confidence: 0.7 },
+      },
+      emotion: { enabled: aiState.isEmotionDetectionEnabled, confidence: 0.5 },
+      beauty: { ...aiState.beautyFilterConfig, enabled: aiState.isBeautyFilterEnabled },
+    }).catch(error => {
+      if (!cancelled) console.warn("AI 전환 실패; 기본 영상 유지", error);
+    });
+    return () => { cancelled = true; };
+  }, [isInRoom, hasLocalVideo, aiState.isAiEnabled, aiState.isStaticGestureDetectionEnabled,
+    aiState.isDynamicGestureDetectionEnabled, aiState.isEmotionDetectionEnabled,
+    aiState.isBeautyFilterEnabled, aiState.beautyFilterConfig]);
 
   const handleJoin = async (userName: string) => {
     if (roomId && userName) {

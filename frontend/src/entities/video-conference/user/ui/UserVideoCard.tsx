@@ -2,13 +2,14 @@
 "use client";
 
 import { useRef, useEffect } from "react";
-import { useAppSelector } from "@/shared/hooks/redux";
+import { useAppDispatch, useAppSelector } from "@/shared/hooks/redux";
 import { useLocalMediaTrack, useRemoteMediaTrack } from "@/shared/hooks/useMediaTrack";
 import {
   MicrophoneIcon,
   VideoCameraIcon,
 } from "@heroicons/react/24/solid";
 import { motion, AnimatePresence } from "framer-motion";
+import { expireReaction } from "@/entities/emoji-reaction/model/slice";
 
 interface UserVideoCardProps {
   socketId?: string; // 원격 유저의 경우 socketId 제공
@@ -35,18 +36,15 @@ export const UserVideoCard = ({ socketId, userName, isLocal = false }: UserVideo
   const isMuted = isLocal ? localAudio.muted : false; // 원격은 항상 muted
 
 
-  const activeReactions = useAppSelector(
-    (state) => state.emojiReaction.activeReactions
-  );
+  const dispatch = useAppDispatch();
   const currentCardUserId = isLocal ? "local" : socketId || "unknown";
-  const activeReaction = activeReactions[currentCardUserId];
-
-  // Redux 상태 디버깅
+  const activeReaction = useAppSelector(state => state.emojiReaction.activeReactions[currentCardUserId]);
   useEffect(() => {
-    console.log(`🎭 [UserVideoCard] ${userName} - currentCardUserId:`, currentCardUserId);
-    console.log(`🎭 [UserVideoCard] ${userName} - activeReactions:`, activeReactions);
-    console.log(`🎭 [UserVideoCard] ${userName} - activeReaction:`, activeReaction);
-  }, [activeReactions, activeReaction, currentCardUserId, userName]);
+    if (!activeReaction) return;
+    const remaining = Math.max(0, activeReaction.timestamp + (activeReaction.duration ?? 2000) - Date.now());
+    const timer = setTimeout(() => dispatch(expireReaction({ userId: currentCardUserId, id: activeReaction.id })), remaining);
+    return () => clearTimeout(timer);
+  }, [dispatch, activeReaction, currentCardUserId]);
 
   // 비디오 트랙을 video 엘리먼트에 연결
   useEffect(() => {
@@ -179,21 +177,21 @@ export const UserVideoCard = ({ socketId, userName, isLocal = false }: UserVideo
 
 
       {/* 반응 오버레이 */}
-      {/* <AnimatePresence>
+      <AnimatePresence>
         {activeReaction && (
           <motion.div
-            key="dynamic-reaction"
+            key={activeReaction.id}
             className="absolute inset-0 flex flex-col items-center justify-center gap-4 pointer-events-none z-20"
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: [0, 1.2, 1], opacity: [0, 1, 1, 0] }}
-            exit={{ scale: 0, opacity: 0 }}
+            exit={{ scale: 0, opacity: 0, transition: { duration: 0.15 } }}
             transition={{
-              duration: 3,
+              duration: (activeReaction.duration ?? 2000) / 1000,
               times: [0, 0.1, 0.8, 1],
               ease: "easeOut",
             }}
           >
-            <div className="text-7xl filter drop-shadow-lg">
+            <div role="status" aria-label={`${activeReaction.userName}의 AI 리액션 ${activeReaction.emoji}`} className="text-7xl filter drop-shadow-lg">
               {activeReaction.emoji}
             </div>
             <div className="bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-xl text-lg font-semibold shadow-lg">
@@ -201,7 +199,7 @@ export const UserVideoCard = ({ socketId, userName, isLocal = false }: UserVideo
             </div>
           </motion.div>
         )}
-      </AnimatePresence> */}
+      </AnimatePresence>
 
 
       {/* 사용자 정보 오버레이 */}

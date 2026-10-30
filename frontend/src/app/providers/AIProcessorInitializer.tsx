@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { initializeAISystem, cleanupAISystem } from "@/shared/api/ai";
+import { initializeAISystem, cleanupAISystem, frontendAiProcessor, aiGestureHandler } from "@/shared/api/ai";
 import { useAppDispatch } from "@/shared/config/hooks";
 
 // AI 초기화가 한 번만 실행되도록 보장하는 플래그 (Strict Mode 대응)
@@ -27,6 +27,8 @@ export default function AIProcessorInitializer() {
       console.log("🚀 Initializing AI System (via AIProcessorInitializer)...");
       initializeAISystem(dispatch)
         .then(() => {
+          frontendAiProcessor.setGestureCallback(aiGestureHandler.handleGestureResult.bind(aiGestureHandler));
+          frontendAiProcessor.setEmotionCallback(aiGestureHandler.handleEmotionResult.bind(aiGestureHandler));
           aiSystemInitialized = true;
           console.log("✅ AI System initialized successfully from AIProcessorInitializer.");
         })
